@@ -1,0 +1,51 @@
+name: Reproduce primary simulation figures
+on:
+  push:
+    branches:
+      - repro-primary-rerun
+  workflow_dispatch:
+
+jobs:
+  primary-simulations:
+    strategy:
+      fail-fast: false
+      matrix:
+        d: [10, 20, 40]
+        kind: [uniform, modnormal]
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install recovered Colab environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            numpy==2.0.2 scipy==1.16.3 scikit-learn==1.6.1 \
+            pandas==2.2.2 matplotlib==3.10.0 networkx==3.6.1 \
+            joblib==1.5.3 causal-learn==0.1.4.4 \
+            python-igraph==1.0.0 lingam==1.12.1
+          python -m pip freeze > primary_environment_freeze.txt
+      - name: Run scenario
+        env:
+          OMP_NUM_THREADS: '1'
+          OPENBLAS_NUM_THREADS: '1'
+          MKL_NUM_THREADS: '1'
+        run: |
+          mkdir -p primary_results/d${{ matrix.d }}_${{ matrix.kind }}
+          python reproduce_primary_simulations.py \
+            --d ${{ matrix.d }} \
+            --kind ${{ matrix.kind }} \
+            --M 20 \
+            --jobs 2 \
+            --out primary_results/d${{ matrix.d }}_${{ matrix.kind }}
+          cp primary_environment_freeze.txt primary_results/d${{ matrix.d }}_${{ matrix.kind }}/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: primary-d${{ matrix.d }}-${{ matrix.kind }}
+          path: primary_results/d${{ matrix.d }}_${{ matrix.kind }}
+          if-no-files-found: error
+          retention-days: 30

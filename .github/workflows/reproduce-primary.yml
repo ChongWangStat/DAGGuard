@@ -1,10 +1,6 @@
 name: Reproduce primary simulation figures
 
 on:
-  push:
-    paths:
-      - 'reproduce_primary_simulations.py'
-      - '.github/workflows/reproduce-primary.yml'
   workflow_dispatch:
 
 jobs:
@@ -12,7 +8,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        d: [10, 20, 40]
+        d: [10, 20]
         weight_kind: [uniform, modnormal]
     runs-on: ubuntu-latest
     timeout-minutes: 360
@@ -42,7 +38,7 @@ jobs:
             python-igraph==1.0.0 \
             lingam==1.12.1
           python -m pip freeze > recovered_environment.txt
-      - name: Run ${{ matrix.d }}-node ${{ matrix.weight_kind }} panel
+      - name: Run panel
         run: |
           python reproduce_primary_simulations.py \
             --d ${{ matrix.d }} \

@@ -1,0 +1,8 @@
+diagnostic,value,detail
+max_abs_pairwise_correlation,0.9999985734263662,nonproductive_days vs productive_days_rate; signed r=-0.999999
+standardized_continuous_condition_number,1929.247,continuous-variable design matrix
+max_VIF,359551.52365682827,productive_days_rate
+parity_variable_correlation,0.8694500918122379,Avg_parity_farrow vs avg_parity_at_farrow
+R2_total_born_from_components,0.99345,Born_alive_avg + Stillborn_avg + Mummies_avg
+R2_prenatal_losses_from_components,0.96925,Stillborn_avg + Mummies_avg
+quarter_within_block_edges,0.0,Q2/Q3/Q4 in initial NOTEARS graph

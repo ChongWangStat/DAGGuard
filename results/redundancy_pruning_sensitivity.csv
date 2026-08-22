@@ -1,0 +1,2 @@
+analysis,n,d,removed_variables,restricted_candidate_edges,bp_edges,original_bp_edges_on_retained_variables,bp_jaccard_vs_original_restricted,bp_overlap,mortality_incoming_edges,mortality_outgoing_edges
+fixed-candidate redundancy-reduced pruning,2556,33,Avg_parity_farrow; productive_days_rate; Total_born_avg; prenatal_losses_avg,164,77,77,0.9012345679012346,73,4,0

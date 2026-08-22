@@ -41,10 +41,7 @@ LAMBDA1 = 0.1
 THRESHOLD = 0.3
 N_SAMPLES = 500
 METHODS = ["GES", "PC", "LiNGAM", "NOTEARS", "NOTEARS-BP"]
-S_VALUES = {
-    "uniform": [1, 4, 7, 10],
-    "modnormal": [1, 2, 3, 4],
-}
+S_VALUES = {"uniform": [1, 4, 7, 10], "modnormal": [1, 2, 3, 4]}
 
 
 def notears_linear(X, lambda1=0.0, max_iter=100, h_tol=1e-8,
@@ -81,11 +78,8 @@ def notears_linear(X, lambda1=0.0, max_iter=100, h_tol=1e-8,
 
     w_est = np.zeros(2 * d * d)
     rho, alpha, h = 1.0, 0.0, np.inf
-    bnds = [
-        (0, 0) if i == j else (0, None)
-        for _ in range(2) for i in range(d) for j in range(d)
-    ]
-
+    bnds = [(0, 0) if i == j else (0, None)
+            for _ in range(2) for i in range(d) for j in range(d)]
     for _ in range(max_iter):
         w_new, h_new = None, None
         while rho < rho_max:
@@ -101,7 +95,6 @@ def notears_linear(X, lambda1=0.0, max_iter=100, h_tol=1e-8,
         alpha += rho * h
         if h <= h_tol or rho >= rho_max:
             break
-
     W_est = _adj(w_est)
     W_est[np.abs(W_est) < w_threshold] = 0
     return W_est
@@ -109,8 +102,7 @@ def notears_linear(X, lambda1=0.0, max_iter=100, h_tol=1e-8,
 
 def simulate_lsem(G: nx.DiGraph, n: int, noise_scale: float = 1.0):
     W = nx.to_numpy_array(G)
-    d = W.shape[0]
-    X = np.zeros((n, d))
+    X = np.zeros((n, W.shape[0]))
     for j in nx.topological_sort(G):
         parents = list(G.predecessors(j))
         noise = np.random.normal(scale=noise_scale, size=n)
@@ -210,8 +202,8 @@ def greedy_edge_removal(X, G):
 
 
 def directed_shd(A_true, A_est):
-    n = A_true.shape[0]
     count = np.sum(np.abs(A_true - A_est))
+    n = A_true.shape[0]
     for i in range(n):
         for j in range(n):
             if (A_true[i, j] == 1 and A_est[i, j] == 0
@@ -232,9 +224,9 @@ def skeleton(A):
     return ((A != 0) | (A.T != 0)).astype(int)
 
 
-def skeleton_metrics(A_true, A_est):
+def skeleton_metrics(A_true, S_est):
     S_true = skeleton(A_true)
-    S_est = skeleton(A_est)
+    S_est = skeleton(S_est)
     iu = np.triu_indices_from(S_true, k=1)
     truth = S_true[iu].astype(bool)
     est = S_est[iu].astype(bool)
@@ -243,118 +235,90 @@ def skeleton_metrics(A_true, A_est):
     fn = int(np.sum(truth & ~est))
     fdr = fp / (tp + fp) if tp + fp else np.nan
     tpr = tp / (tp + fn) if tp + fn else np.nan
-    shd = fp + fn
-    return float(fdr), float(tpr), float(shd)
+    return float(fdr), float(tpr), float(fp + fn)
 
 
 def causal_learn_directed(graph_matrix):
-    """Historical directed scoring used for PC/GES in the manuscript.
-
-    causal-learn encodes i -> j by graph[j, i] = 1 and graph[i, j] = -1.
-    Undirected (-1, -1) endpoints are not credited as directed edges here.
-    """
+    """Convert causal-learn endpoint encoding to the historical directed score."""
     A = np.array(graph_matrix, dtype=int).copy()
     A[A == -1] = 0
     return A.T
+
+
+def causal_learn_skeleton(graph_matrix):
+    """Preserve all adjacencies, including unresolved CPDAG edges."""
+    raw = np.array(graph_matrix, dtype=int)
+    S = ((np.abs(raw) > 0) | (np.abs(raw.T) > 0)).astype(int)
+    np.fill_diagonal(S, 0)
+    return S
 
 
 def run_one(d, s, weight_kind, rep):
     seed = BASE_SEED + 1000 * S_VALUES[weight_kind].index(s) + rep
     np.random.seed(seed)
     random.seed(seed)
-
     B = simulate_dag(d, 2 * d)
-    if weight_kind == "uniform":
-        W = simulate_parameter_uniform(B, s)
-    else:
-        W = simulate_parameter_modnormal(B, s)
+    W = (simulate_parameter_uniform(B, s) if weight_kind == "uniform"
+         else simulate_parameter_modnormal(B, s))
     X = simulate_lsem(nx.DiGraph(W), n=N_SAMPLES)
 
     W0 = notears_linear(X, lambda1=LAMBDA1)
     A_note = (np.abs(W0) > THRESHOLD).astype(int)
-    A_bp = nx.to_numpy_array(
-        greedy_edge_removal(X, nx.DiGraph(A_note)), dtype=int
-    )
+    A_bp = nx.to_numpy_array(greedy_edge_removal(X, nx.DiGraph(A_note)),
+                             dtype=int)
 
     ges_graph = ges(X)["G"]
     A_ges = causal_learn_directed(ges_graph.graph)
+    S_ges = causal_learn_skeleton(ges_graph.graph)
 
     # Effective PC configuration of the reported simulations: Fisher-Z at
     # alpha=0.05 with causal-learn's standard conditioning-depth search.
     # Earlier archival code passed non-API keyword names through **kwargs;
-    # they did not impose a conditioning-depth cap.
-    pc_graph = pc(
-        X,
-        alpha=0.05,
-        indep_test=fisherz,
-        show_progress=False,
-    ).G
+    # those keywords did not impose a conditioning-depth cap.
+    pc_graph = pc(X, alpha=0.05, indep_test=fisherz,
+                  show_progress=False).G
     A_pc = causal_learn_directed(pc_graph.graph)
+    S_pc = causal_learn_skeleton(pc_graph.graph)
 
     model = lingam.DirectLiNGAM()
     model.fit(X)
     A_lingam = (np.abs(model.adjacency_matrix_.T) > 0).astype(int)
 
     rows = []
-    for method, A in [
-        ("GES", A_ges),
-        ("PC", A_pc),
-        ("LiNGAM", A_lingam),
-        ("NOTEARS", A_note),
-        ("NOTEARS-BP", A_bp),
+    for method, A, S in [
+        ("GES", A_ges, S_ges),
+        ("PC", A_pc, S_pc),
+        ("LiNGAM", A_lingam, skeleton(A_lingam)),
+        ("NOTEARS", A_note, skeleton(A_note)),
+        ("NOTEARS-BP", A_bp, skeleton(A_bp)),
     ]:
         fdr, tpr, shd = directed_metrics(B, A)
-        sfdr, stpr, sshd = skeleton_metrics(B, A)
+        sfdr, stpr, sshd = skeleton_metrics(B, S)
         rows.append({
-            "d": d,
-            "weight_kind": weight_kind,
-            "s": s,
-            "rep": rep,
-            "seed": seed,
-            "method": method,
-            "fdr": fdr,
-            "tpr": tpr,
-            "shd": shd,
-            "skeleton_fdr": sfdr,
-            "skeleton_tpr": stpr,
-            "skeleton_shd": sshd,
-            "true_edges": int(B.sum()),
-            "estimated_edges": int(A.sum()),
+            "d": d, "weight_kind": weight_kind, "s": s, "rep": rep,
+            "seed": seed, "method": method, "fdr": fdr, "tpr": tpr,
+            "shd": shd, "skeleton_fdr": sfdr, "skeleton_tpr": stpr,
+            "skeleton_shd": sshd, "true_edges": int(B.sum()),
+            "estimated_edges": int(A.sum())
         })
     return rows
 
 
 def draw_metric(df, metric, title, ylabel, s_values, out_base):
-    colors = {
-        "GES": "orange",
-        "PC": "green",
-        "LiNGAM": "yellow",
-        "NOTEARS": "blue",
-        "NOTEARS-BP": "red",
-    }
-    offsets = {
-        "GES": -0.40,
-        "PC": -0.24,
-        "LiNGAM": -0.08,
-        "NOTEARS": 0.08,
-        "NOTEARS-BP": 0.24,
-    }
+    colors = {"GES": "orange", "PC": "green", "LiNGAM": "yellow",
+              "NOTEARS": "blue", "NOTEARS-BP": "red"}
+    offsets = {"GES": -0.40, "PC": -0.24, "LiNGAM": -0.08,
+               "NOTEARS": 0.08, "NOTEARS-BP": 0.24}
     fig, ax = plt.subplots(figsize=(18, 5))
     handles = []
     for method in METHODS:
-        arrays = [
-            df[(df.s == s) & (df.method == method)][metric].to_numpy()
-            for s in s_values
-        ]
+        arrays = [df[(df.s == s) & (df.method == method)][metric].to_numpy()
+                  for s in s_values]
         positions = np.arange(1, len(s_values) + 1) + offsets[method]
-        bp = ax.boxplot(
-            arrays,
-            positions=positions,
-            widths=0.15,
-            patch_artist=True,
-            boxprops={"facecolor": colors[method], "color": "black"},
-            medianprops={"color": "black"},
-        )
+        bp = ax.boxplot(arrays, positions=positions, widths=0.15,
+                        patch_artist=True,
+                        boxprops={"facecolor": colors[method], "color": "black"},
+                        medianprops={"color": "black"})
         handles.append(bp["boxes"][0])
     ax.set_xlim(0.4, len(s_values) + 0.74)
     ax.set_xticks(np.arange(1, len(s_values) + 1))
@@ -367,51 +331,31 @@ def draw_metric(df, metric, title, ylabel, s_values, out_base):
         ax.axvline(x=i + 1.4, color="gray", linestyle="--", linewidth=0.8)
     fig.tight_layout()
     for ext in ["png", "pdf", "svg"]:
-        fig.savefig(
-            f"{out_base}.{ext}",
-            dpi=300 if ext == "png" else None,
-            bbox_inches="tight",
-        )
+        fig.savefig(f"{out_base}.{ext}",
+                    dpi=300 if ext == "png" else None,
+                    bbox_inches="tight")
     plt.close(fig)
 
 
 def draw_combined(df, s_values, out_base):
     fig, axes = plt.subplots(3, 1, figsize=(18, 15))
-    colors = {
-        "GES": "orange",
-        "PC": "green",
-        "LiNGAM": "yellow",
-        "NOTEARS": "blue",
-        "NOTEARS-BP": "red",
-    }
-    offsets = {
-        "GES": -0.40,
-        "PC": -0.24,
-        "LiNGAM": -0.08,
-        "NOTEARS": 0.08,
-        "NOTEARS-BP": 0.24,
-    }
+    colors = {"GES": "orange", "PC": "green", "LiNGAM": "yellow",
+              "NOTEARS": "blue", "NOTEARS-BP": "red"}
+    offsets = {"GES": -0.40, "PC": -0.24, "LiNGAM": -0.08,
+               "NOTEARS": 0.08, "NOTEARS-BP": 0.24}
     for ax, metric, title, ylabel in zip(
-        axes,
-        ["fdr", "tpr", "shd"],
-        ["False Discovery Rate", "True Positive Rate", "SHD"],
-        ["FDR", "TPR", "SHD"],
-    ):
+            axes, ["fdr", "tpr", "shd"],
+            ["False Discovery Rate", "True Positive Rate", "SHD"],
+            ["FDR", "TPR", "SHD"]):
         handles = []
         for method in METHODS:
-            arrays = [
-                df[(df.s == s) & (df.method == method)][metric].to_numpy()
-                for s in s_values
-            ]
+            arrays = [df[(df.s == s) & (df.method == method)][metric].to_numpy()
+                      for s in s_values]
             positions = np.arange(1, len(s_values) + 1) + offsets[method]
-            bp = ax.boxplot(
-                arrays,
-                positions=positions,
-                widths=0.15,
-                patch_artist=True,
-                boxprops={"facecolor": colors[method], "color": "black"},
-                medianprops={"color": "black"},
-            )
+            bp = ax.boxplot(arrays, positions=positions, widths=0.15,
+                            patch_artist=True,
+                            boxprops={"facecolor": colors[method], "color": "black"},
+                            medianprops={"color": "black"})
             handles.append(bp["boxes"][0])
         ax.set_xlim(0.4, len(s_values) + 0.74)
         ax.set_xticks(np.arange(1, len(s_values) + 1))
@@ -424,20 +368,17 @@ def draw_combined(df, s_values, out_base):
             ax.axvline(x=i + 1.4, color="gray", linestyle="--", linewidth=0.8)
     fig.tight_layout()
     for ext in ["png", "pdf", "svg"]:
-        fig.savefig(
-            f"{out_base}.{ext}",
-            dpi=300 if ext == "png" else None,
-            bbox_inches="tight",
-        )
+        fig.savefig(f"{out_base}.{ext}",
+                    dpi=300 if ext == "png" else None,
+                    bbox_inches="tight")
     plt.close(fig)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--d", type=int, choices=[10, 20, 40], required=True)
-    parser.add_argument(
-        "--weight-kind", choices=["uniform", "modnormal"], required=True
-    )
+    parser.add_argument("--weight-kind", choices=["uniform", "modnormal"],
+                        required=True)
     parser.add_argument("--M", type=int, default=20)
     parser.add_argument("--n-jobs", type=int, default=2)
     parser.add_argument("--out", type=Path, required=True)
@@ -448,55 +389,38 @@ def main():
     tasks = [(s, rep) for s in s_values for rep in range(args.M)]
     nested = Parallel(n_jobs=args.n_jobs, verbose=10)(
         delayed(run_one)(args.d, s, args.weight_kind, rep)
-        for s, rep in tasks
-    )
+        for s, rep in tasks)
     rows = [row for group in nested for row in group]
     df = pd.DataFrame(rows)
     df.to_csv(args.out / "replicate_metrics.csv", index=False)
 
-    summary = df.groupby(
-        ["d", "weight_kind", "s", "method"], as_index=False
-    ).agg(
-        fdr_mean=("fdr", "mean"),
-        tpr_mean=("tpr", "mean"),
-        shd_mean=("shd", "mean"),
-        fdr_sd=("fdr", "std"),
-        tpr_sd=("tpr", "std"),
-        shd_sd=("shd", "std"),
+    summary = df.groupby(["d", "weight_kind", "s", "method"],
+                         as_index=False).agg(
+        fdr_mean=("fdr", "mean"), tpr_mean=("tpr", "mean"),
+        shd_mean=("shd", "mean"), fdr_sd=("fdr", "std"),
+        tpr_sd=("tpr", "std"), shd_sd=("shd", "std"),
         skeleton_fdr_mean=("skeleton_fdr", "mean"),
         skeleton_tpr_mean=("skeleton_tpr", "mean"),
         skeleton_shd_mean=("skeleton_shd", "mean"),
-        estimated_edges_mean=("estimated_edges", "mean"),
-    )
+        estimated_edges_mean=("estimated_edges", "mean"))
     summary.to_csv(args.out / "summary.csv", index=False)
 
     config = {
-        "d": args.d,
-        "weight_kind": args.weight_kind,
-        "M": args.M,
-        "n_samples": N_SAMPLES,
-        "lambda1": LAMBDA1,
-        "threshold": THRESHOLD,
-        "base_seed": BASE_SEED,
-        "s_values": s_values,
-        "true_edges": 2 * args.d,
-        "pc": {
-            "alpha": 0.05,
-            "indep_test": "fisherz",
-            "max_k": None,
-            "note": "standard causal-learn conditioning-depth search",
-        },
-    }
+        "d": args.d, "weight_kind": args.weight_kind, "M": args.M,
+        "n_samples": N_SAMPLES, "lambda1": LAMBDA1,
+        "threshold": THRESHOLD, "base_seed": BASE_SEED,
+        "s_values": s_values, "true_edges": 2 * args.d,
+        "pc": {"alpha": 0.05, "indep_test": "fisherz", "max_k": None,
+               "note": "standard causal-learn conditioning-depth search"}}
     (args.out / "run_config.json").write_text(
-        json.dumps(config, indent=2) + "\n", encoding="utf-8"
-    )
+        json.dumps(config, indent=2) + "\n", encoding="utf-8")
 
-    draw_metric(df, "fdr", "False Discovery Rate", "FDR",
-                s_values, args.out / "fdr")
-    draw_metric(df, "tpr", "True Positive Rate", "TPR",
-                s_values, args.out / "tpr")
-    draw_metric(df, "shd", "SHD", "SHD",
-                s_values, args.out / "shd")
+    draw_metric(df, "fdr", "False Discovery Rate", "FDR", s_values,
+                args.out / "fdr")
+    draw_metric(df, "tpr", "True Positive Rate", "TPR", s_values,
+                args.out / "tpr")
+    draw_metric(df, "shd", "SHD", "SHD", s_values,
+                args.out / "shd")
     draw_combined(df, s_values, args.out / "combined")
     print(summary.to_string(index=False))
 

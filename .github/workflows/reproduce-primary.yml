@@ -6,12 +6,18 @@ on:
     paths:
       - 'notears_bp.py'
       - 'reproduce_simulations.py'
+      - 'additional_validation_and_realdata.py'
+      - 'targeted_simulation_diagnostics.py'
+      - 'realdata_postselection_diagnostics.py'
       - 'requirements.txt'
       - '.github/workflows/reproduce-primary.yml'
   pull_request:
     paths:
       - 'notears_bp.py'
       - 'reproduce_simulations.py'
+      - 'additional_validation_and_realdata.py'
+      - 'targeted_simulation_diagnostics.py'
+      - 'realdata_postselection_diagnostics.py'
       - 'requirements.txt'
       - '.github/workflows/reproduce-primary.yml'
 
@@ -34,6 +40,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
+      - name: Check analysis-script syntax
+        run: |
+          python -m py_compile \
+            reproduce_simulations.py \
+            additional_validation_and_realdata.py \
+            targeted_simulation_diagnostics.py \
+            realdata_postselection_diagnostics.py
       - name: Run small reproducibility check
         run: |
           python reproduce_simulations.py \

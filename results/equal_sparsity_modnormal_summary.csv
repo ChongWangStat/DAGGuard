@@ -1,0 +1,5 @@
+d,kind,s,n,method,fdr,tpr,shd,edges,tp,fp,fn
+10,modnormal,3,500,Equal-sparsity raw magnitude,0.11436036830386673,0.76,6.9,17.3,15.2,2.1,4.8
+10,modnormal,3,500,Equal-sparsity unit-normalized magnitude,0.1598944429323686,0.72,8.45,17.3,14.4,2.9,5.6
+10,modnormal,3,500,NOTEARS,0.20023865308525607,0.7975,8.7,20.65,15.95,4.7,4.05
+10,modnormal,3,500,NOTEARS-BP,0.07488567053002035,0.795,5.45,17.3,15.9,1.4,4.1

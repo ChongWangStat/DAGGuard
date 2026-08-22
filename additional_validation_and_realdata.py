@@ -21,7 +21,7 @@ from sklearn.preprocessing import StandardScaler
 
 from reproduce_simulations import (
     BASE_SEED, LAMBDA1, THRESHOLD, directed_metrics, greedy_edge_removal,
-    notears_linear, simulate_dag, simulate_parameter_uniform,
+    notears_linear,
 )
 
 BINARY_VARS = [
@@ -52,27 +52,54 @@ def prune(X, A):
     return nx.to_numpy_array(greedy_edge_removal(X, nx.DiGraph(A)), dtype=int)
 
 
-def simulate_lsem_noise(W, n, noise, rng):
+def simulate_dag_seeded(d, num_edges, seed):
+    rng = np.random.default_rng(seed)
+    order = rng.permutation(d)
+    A = np.zeros((d, d), dtype=int)
+    pairs = [(order[i], order[j]) for i in range(d) for j in range(i + 1, d)]
+    chosen = rng.choice(len(pairs), size=min(num_edges, len(pairs)), replace=False)
+    for idx in chosen:
+        u, v = pairs[idx]
+        A[u, v] = 1
+    assert int(A.sum()) == num_edges
+    return A
+
+
+def simulate_weights_seeded(A, s, seed):
+    rng = np.random.default_rng(seed)
+    W = np.zeros_like(A, dtype=float)
+    mask = A != 0
+    signs = rng.choice([-1, 1], size=A.shape)
+    mags = rng.uniform(0.5, s, size=A.shape)
+    W[mask] = signs[mask] * mags[mask]
+    return W
+
+
+def simulate_lsem_noise(W, n, noise, seed):
+    rng = np.random.default_rng(seed)
     G = nx.DiGraph(W)
     X = np.zeros((n, W.shape[0]))
     for j in nx.topological_sort(G):
-        parents = list(G.predecessors(j))
+        parents = np.where(W[:, j] != 0)[0]
         if noise == "normal":
             eps = rng.normal(0, 1, n)
         elif noise == "exponential":
             eps = rng.exponential(1, n) - 1
         elif noise == "gumbel":
-            eps = rng.gumbel(0, 1, n) - 0.5772156649015329
+            eps = rng.gumbel(0, 1, n) - 0.5772156649
         else:
             raise ValueError(noise)
-        X[:, j] = X[:, parents] @ W[parents, j] + eps if parents else eps
+        X[:, j] = X[:, parents] @ W[parents, j] + eps if len(parents) else eps
     return X
 
 
 def local_bic(X, child, parents):
     n = X.shape[0]
     y = X[:, child]
-    D = np.column_stack([np.ones(n), X[:, parents]]) if parents else np.ones((n, 1))
+    if parents:
+        D = np.column_stack([np.ones(n), X[:, parents]])
+    else:
+        D = np.ones((n, 1))
     coef, *_ = np.linalg.lstsq(D, y, rcond=None)
     rss = max(float(np.sum((y - D @ coef) ** 2)), np.finfo(float).eps)
     return n * np.log(rss / n) + D.shape[1] * np.log(n)
@@ -110,17 +137,17 @@ def hc_bic(X, max_iter=200):
 
 
 def run_additional_simulations(out, M=20, n=500):
-    rows, pruning = [], []
-    noises = ["normal", "exponential", "gumbel"]
+    rows = []
+    pruning = []
     for d in [10, 20]:
         for s in [2, 5]:
+            noises = ["normal", "exponential", "gumbel"]
             for noise in noises:
                 for rep in range(M):
-                    seed = BASE_SEED + 100000 * d + 1000 * s + 100 * noises.index(noise) + rep
-                    np.random.seed(seed)
-                    B = simulate_dag(d, 2 * d)
-                    W = simulate_parameter_uniform(B, s)
-                    X = simulate_lsem_noise(W, n, noise, np.random.default_rng(seed + 17))
+                    seed = BASE_SEED + 100000 * d + 1000 * int(10 * s) + 10 * noises.index(noise) + rep
+                    B = simulate_dag_seeded(d, 2 * d, seed)
+                    W = simulate_weights_seeded(B, s, seed + 1)
+                    X = simulate_lsem_noise(W, n, noise, seed + 2)
                     Wn = notears_linear(X, lambda1=LAMBDA1)
                     An = adjacency(Wn)
                     Abp = prune(X, An)
@@ -142,10 +169,10 @@ def run_additional_simulations(out, M=20, n=500):
                     })
     df = pd.DataFrame(rows)
     df.to_csv(out / "additional_simulation_metrics.csv", index=False)
-    df.groupby("method", as_index=False).agg(
+    summary = df.groupby(["method"], as_index=False).agg(
         fdr=("fdr", "mean"), tpr=("tpr", "mean"), shd=("shd", "mean"),
-        edges=("estimated_edges", "mean")).to_csv(
-            out / "additional_simulation_summary.csv", index=False)
+        edges=("estimated_edges", "mean"))
+    summary.to_csv(out / "additional_simulation_summary.csv", index=False)
     pd.DataFrame(pruning).to_csv(out / "pruning_diagnostics.csv", index=False)
 
 
@@ -192,8 +219,8 @@ def run_real_data(csv_path, out, B=100):
                                      "standardized", out)
     summaries.append(row)
     cont_labels = [c for c in labels if c not in BINARY_VARS]
-    _, _, _, row = fit_real_variant(df[cont_labels].to_numpy(float), cont_labels,
-                                     "continuous_only", out)
+    Xc = df[cont_labels].to_numpy(float)
+    _, _, _, row = fit_real_variant(Xc, cont_labels, "continuous_only", out)
     summaries.append(row)
     pd.DataFrame(summaries).to_csv(out / "realdata_sensitivity_summary.csv", index=False)
 

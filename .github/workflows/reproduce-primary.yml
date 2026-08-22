@@ -5,13 +5,13 @@ on:
   push:
     paths:
       - 'notears_bp.py'
-      - 'reproduce_primary_simulations.py'
+      - 'reproduce_simulations.py'
       - 'requirements.txt'
       - '.github/workflows/reproduce-primary.yml'
   pull_request:
     paths:
       - 'notears_bp.py'
-      - 'reproduce_primary_simulations.py'
+      - 'reproduce_simulations.py'
       - 'requirements.txt'
       - '.github/workflows/reproduce-primary.yml'
 
@@ -36,7 +36,7 @@ jobs:
           python -m pip install -r requirements.txt
       - name: Run small reproducibility check
         run: |
-          python reproduce_primary_simulations.py \
+          python reproduce_simulations.py \
             --d 10 \
             --weight-kind uniform \
             --M 1 \

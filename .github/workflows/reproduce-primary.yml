@@ -1,17 +1,24 @@
-name: Reproduce primary simulation figures
+name: Simulation smoke test
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'notears_bp.py'
+      - 'reproduce_primary_simulations.py'
+      - 'requirements.txt'
+      - '.github/workflows/reproduce-primary.yml'
+  pull_request:
+    paths:
+      - 'notears_bp.py'
+      - 'reproduce_primary_simulations.py'
+      - 'requirements.txt'
+      - '.github/workflows/reproduce-primary.yml'
 
 jobs:
-  primary-simulations:
-    strategy:
-      fail-fast: false
-      matrix:
-        d: [10, 20]
-        weight_kind: [uniform, modnormal]
+  smoke-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 120
     env:
       OMP_NUM_THREADS: '1'
       OPENBLAS_NUM_THREADS: '1'
@@ -23,37 +30,20 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-      - name: Install recovered Colab environment
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install \
-            numpy==2.0.2 \
-            scipy==1.16.3 \
-            scikit-learn==1.6.1 \
-            networkx==3.6.1 \
-            pandas==2.2.2 \
-            matplotlib==3.10.0 \
-            joblib==1.5.3 \
-            causal-learn==0.1.4.4 \
-            python-igraph==1.0.0 \
-            lingam==1.12.1
-          python -m pip freeze > recovered_environment.txt
-      - name: Run panel
+          python -m pip install -r requirements.txt
+      - name: Run small reproducibility check
         run: |
           python reproduce_primary_simulations.py \
-            --d ${{ matrix.d }} \
-            --weight-kind ${{ matrix.weight_kind }} \
-            --M 20 \
-            --n-jobs 2 \
-            --out results/d${{ matrix.d }}_${{ matrix.weight_kind }}
-      - name: Record provenance
+            --d 10 \
+            --weight-kind uniform \
+            --M 1 \
+            --n-jobs 1 \
+            --out results/smoke_test
+      - name: Verify expected outputs
         run: |
-          cp recovered_environment.txt results/d${{ matrix.d }}_${{ matrix.weight_kind }}/
-          echo "commit=${GITHUB_SHA}" > results/d${{ matrix.d }}_${{ matrix.weight_kind }}/github_provenance.txt
-          echo "runner=${RUNNER_OS}" >> results/d${{ matrix.d }}_${{ matrix.weight_kind }}/github_provenance.txt
-      - name: Upload panel results
-        uses: actions/upload-artifact@v4
-        with:
-          name: primary-d${{ matrix.d }}-${{ matrix.weight_kind }}
-          path: results/d${{ matrix.d }}_${{ matrix.weight_kind }}/
-          retention-days: 30
+          test -s results/smoke_test/replicate_metrics.csv
+          test -s results/smoke_test/summary.csv
+          test -s results/smoke_test/combined.pdf

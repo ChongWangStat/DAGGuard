@@ -5,6 +5,8 @@ on:
   push:
     paths:
       - 'local_bic_refinement.py'
+      - 'example_simulation.py'
+      - 'make_manuscript_assets.py'
       - 'candidate_contamination_simulations.py'
       - 'tests/**'
       - 'reproduce_simulations.py'
@@ -16,6 +18,8 @@ on:
   pull_request:
     paths:
       - 'local_bic_refinement.py'
+      - 'example_simulation.py'
+      - 'make_manuscript_assets.py'
       - 'candidate_contamination_simulations.py'
       - 'tests/**'
       - 'reproduce_simulations.py'
@@ -48,14 +52,18 @@ jobs:
         run: |
           python -m py_compile \
             local_bic_refinement.py \
+            example_simulation.py \
+            make_manuscript_assets.py \
             reproduce_simulations.py \
             simulation_diagnostics.py \
             additional_noise_sensitivity.py \
             realdata_postselection_diagnostics.py \
             candidate_contamination_simulations.py
-          python -c "import local_bic_refinement, reproduce_simulations, simulation_diagnostics, additional_noise_sensitivity, realdata_postselection_diagnostics, candidate_contamination_simulations"
+          python -c "import local_bic_refinement, example_simulation, make_manuscript_assets, reproduce_simulations, simulation_diagnostics, additional_noise_sensitivity, realdata_postselection_diagnostics, candidate_contamination_simulations"
       - name: Run deterministic unit tests
         run: python -m unittest discover -s tests -v
+      - name: Run quick example
+        run: python example_simulation.py
       - name: Run small reproducibility check
         run: |
           python reproduce_simulations.py \

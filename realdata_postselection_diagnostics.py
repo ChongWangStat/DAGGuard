@@ -2,17 +2,17 @@
 """Targeted diagnostics for the proprietary swine-production application.
 
 The script contains no commercial observations. Given an authorized local
-copy of train2023cw_simple.csv, it reproduces the diagnostics added to the JDS
-revision:
+copy of train2023cw_simple.csv, it reproduces the application diagnostics:
   * missingness and collinearity/VIF audit;
   * binary-node and Q2/Q3/Q4 diagnostics;
+  * one-pass initial pruning-pressure diagnostic;
   * mortality-neighborhood partial-R2 and Delta-BIC evidence;
   * EBIC sensitivity;
   * fixed-candidate redundancy sensitivity;
   * arbitrary unit-change sensitivity;
   * optional row-bootstrap recurrence for NOTEARS and NOTEARS-BP.
 
-Each diagnostic answers a specific alternative explanation for the real-data
+Each diagnostic addresses a specific alternative explanation for the real-data
 result; none is presented as a substitute for the primary analysis.
 """
 from __future__ import annotations
@@ -96,6 +96,33 @@ def prep_with_missing(path):
         x[f"Q{q}"] = quarter.eq(q).astype(int)
     numeric = x[REAL_VARS].apply(pd.to_numeric, errors="coerce")
     return raw, numeric, numeric.dropna().copy()
+
+
+def initial_pruning_pressure(X, A0, labels, analysis, out):
+    """Evaluate every candidate edge once using the initial parent sets."""
+    n = X.shape[0]
+    cutoff = 1 - n ** (-1 / n)
+    rows = []
+    for u, v in np.argwhere(A0 == 1):
+        parents = list(np.where(A0[:, v] == 1)[0])
+        reduced = [p for p in parents if p != u]
+        _, rss_full = local_bic(X, v, parents)
+        _, rss_reduced = local_bic(X, v, reduced)
+        partial_r2 = 1 - rss_full / rss_reduced
+        rows.append(dict(
+            analysis=analysis, from_=labels[u], to=labels[v],
+            partial_R2_initial=partial_r2, cutoff=cutoff,
+            below_cutoff=bool(partial_r2 < cutoff),
+        ))
+    edge_df = pd.DataFrame(rows).rename(columns={"from_": "from"})
+    below = int(edge_df["below_cutoff"].sum()) if len(edge_df) else 0
+    summary = dict(
+        analysis=analysis, n=n, candidate_edges=int(A0.sum()),
+        partial_r2_cutoff=cutoff, initial_edges_below_cutoff=below,
+        initial_pruning_pressure=below / int(A0.sum()) if A0.sum() else 0.0,
+    )
+    edge_df.to_csv(out / f"{analysis}_initial_pruning_pressure_edges.csv", index=False)
+    return summary
 
 
 def collinearity_audit(df, out):
@@ -197,6 +224,18 @@ def main():
     A0 = adjacency(W)
     Abp, removed = prune(X, A0, record=True)
 
+    pressure_rows = [
+        initial_pruning_pressure(X, A0, labels, "original_scale", args.out)
+    ]
+    Xs = StandardScaler().fit_transform(X)
+    Ws = notears_linear(Xs, lambda1=LAMBDA1)
+    A0s_std = adjacency(Ws)
+    pressure_rows.append(
+        initial_pruning_pressure(Xs, A0s_std, labels, "standardized", args.out)
+    )
+    pd.DataFrame(pressure_rows).to_csv(
+        args.out / "initial_pruning_pressure_summary.csv", index=False)
+
     indeg = [{"variable": b, "initial_notears_indegree": int(A0[:, labels.index(b)].sum())}
              for b in BINARY_VARS]
     pd.DataFrame(indeg).to_csv(args.out / "binary_node_indegree_diagnostic.csv", index=False)
@@ -240,31 +279,38 @@ def main():
     Xscaled = X.copy()
     for v in ["HeadIn", "final_inventory"]:
         Xscaled[:, labels.index(v)] /= 1000.0
-    Ws = notears_linear(Xscaled, lambda1=LAMBDA1)
-    A0s = adjacency(Ws)
-    Abs, _ = prune(Xscaled, A0s)
+    Wscaled = notears_linear(Xscaled, lambda1=LAMBDA1)
+    A0scaled = adjacency(Wscaled)
+    Abpscaled, _ = prune(Xscaled, A0scaled)
+
     def jaccard_edges(A, B):
-        a = set(map(tuple, np.argwhere(A == 1))); b = set(map(tuple, np.argwhere(B == 1)))
+        a = set(map(tuple, np.argwhere(A == 1)))
+        b = set(map(tuple, np.argwhere(B == 1)))
         return len(a & b) / len(a | b)
+
     pd.DataFrame([
         dict(metric="notears_edges_original", value=int(A0.sum())),
-        dict(metric="notears_edges_scaled", value=int(A0s.sum())),
-        dict(metric="notears_jaccard", value=jaccard_edges(A0, A0s)),
+        dict(metric="notears_edges_scaled", value=int(A0scaled.sum())),
+        dict(metric="notears_jaccard", value=jaccard_edges(A0, A0scaled)),
         dict(metric="bp_edges_original", value=int(Abp.sum())),
-        dict(metric="bp_edges_scaled", value=int(Abs.sum())),
-        dict(metric="bp_jaccard", value=jaccard_edges(Abp, Abs)),
+        dict(metric="bp_edges_scaled", value=int(Abpscaled.sum())),
+        dict(metric="bp_jaccard", value=jaccard_edges(Abp, Abpscaled)),
     ]).to_csv(args.out / "unit_change_sensitivity.csv", index=False)
 
     if args.bootstrap > 0:
         rng = np.random.default_rng(12123)
-        F0 = np.zeros_like(A0, float); Fb = np.zeros_like(Abp, float)
+        F0 = np.zeros_like(A0, float)
+        Fb = np.zeros_like(Abp, float)
         for b in range(args.bootstrap):
             ixr = rng.integers(0, X.shape[0], X.shape[0])
             Wb = notears_linear(X[ixr], lambda1=LAMBDA1)
-            A0b = adjacency(Wb); Abb, _ = prune(X[ixr], A0b)
-            F0 += A0b; Fb += Abb
+            A0b = adjacency(Wb)
+            Abb, _ = prune(X[ixr], A0b)
+            F0 += A0b
+            Fb += Abb
             print(f"bootstrap {b+1}/{args.bootstrap}")
-        F0 /= args.bootstrap; Fb /= args.bootstrap
+        F0 /= args.bootstrap
+        Fb /= args.bootstrap
         rows = []
         for name, Aorig, F in [("NOTEARS", A0, F0), ("NOTEARS-BP", Abp, Fb)]:
             for th in [0.5, 0.7]:
@@ -276,6 +322,7 @@ def main():
 
     print(f"complete cases: {len(df)}/{len(raw)}")
     print(f"NOTEARS edges: {int(A0.sum())}; BP edges: {int(Abp.sum())}")
+    print(pd.DataFrame(pressure_rows).to_string(index=False))
 
 
 if __name__ == "__main__":

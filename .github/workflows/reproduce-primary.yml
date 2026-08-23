@@ -6,9 +6,8 @@ on:
     paths:
       - 'notears_bp.py'
       - 'reproduce_simulations.py'
+      - 'simulation_diagnostics.py'
       - 'additional_validation_and_realdata.py'
-      - 'targeted_simulation_diagnostics.py'
-      - 'round2_targeted_diagnostics.py'
       - 'realdata_postselection_diagnostics.py'
       - 'requirements.txt'
       - '.github/workflows/reproduce-primary.yml'
@@ -16,9 +15,8 @@ on:
     paths:
       - 'notears_bp.py'
       - 'reproduce_simulations.py'
+      - 'simulation_diagnostics.py'
       - 'additional_validation_and_realdata.py'
-      - 'targeted_simulation_diagnostics.py'
-      - 'round2_targeted_diagnostics.py'
       - 'realdata_postselection_diagnostics.py'
       - 'requirements.txt'
       - '.github/workflows/reproduce-primary.yml'
@@ -46,9 +44,8 @@ jobs:
         run: |
           python -m py_compile \
             reproduce_simulations.py \
+            simulation_diagnostics.py \
             additional_validation_and_realdata.py \
-            targeted_simulation_diagnostics.py \
-            round2_targeted_diagnostics.py \
             realdata_postselection_diagnostics.py
       - name: Run small reproducibility check
         run: |

@@ -4,13 +4,15 @@ These files contain non-row-level summaries derived from the analyses reported i
 
 The directory is organized around the specific questions raised by the validation analyses:
 
-- `equal_sparsity_ablation_summary.csv` — original diagnostic ablation holding graph size fixed under uniform weights. If BP retains K edges, the controls retain exactly K NOTEARS candidate edges by raw or unit-normalized coefficient magnitude. This is not a practical competing method; it isolates edge choice from the trivial effect of returning fewer edges.
-- `equal_sparsity_modnormal_summary.csv` — second coefficient-regime version of the same equal-sparsity mechanism check (`d=10`, modified-normal `s=3`), included to verify that the finding is not specific to uniform weights.
-- `sample_size_diagnostic.csv` — targeted `n = 100, 500, 2000` diagnostic showing the exact partial-R2 BIC cutoff and paired NOTEARS/BP performance. It exists because the method is described as sample-size adaptive and that property should be exercised empirically.
-- `varsortability_primary_summary.csv` — path-based varsortability and marginal SD-ratio summaries for every primary simulation setting, included so that the unusually strong variance-ordering signal in the benchmark is explicit.
+- `equal_sparsity_ablation_summary.csv` — diagnostic ablation holding graph size fixed under uniform weights. If BP retains K edges, the controls retain exactly K NOTEARS candidate edges by raw or unit-normalized coefficient magnitude. This is not a practical competing method; it isolates edge choice from the effect of returning fewer edges.
+- `equal_sparsity_modnormal_summary.csv` — modified-normal version of the same equal-sparsity mechanism check (`d=10`, `s=3`), included to verify that the finding is not specific to uniform coefficients.
+- `sample_size_diagnostic.csv` — targeted `n = 100, 500, 2000` diagnostic showing the exact partial-R2 BIC cutoff and paired NOTEARS/BP performance.
+- `varsortability_primary_summary.csv` — path-based varsortability and marginal SD-ratio summaries for every primary simulation setting, included so that the strong variance-ordering signal in the benchmark is explicit.
 - `standardized_varsortability_diagnostic.csv` — targeted standardized-data experiment showing that BP does not rescue a poor standardized NOTEARS initialization.
+- `dagma_bp_summary.csv` — compact generality diagnostic using DAGMA as a second continuous-optimization upstream learner. It tests whether the same fixed-DAG BP operator can improve a non-NOTEARS candidate graph; it is not intended as a comprehensive DAGMA benchmark.
 - `additional_simulation_summary.csv` — overall means from the Gaussian/non-Gaussian validation experiment.
 - `pruning_diagnostics_summary.csv` — average initial/final edge counts and false-positive/true-positive removals in that experiment.
+- `initial_pruning_pressure_summary.csv` — one-pass pre-check for the real-data candidate graphs. It reports the number and fraction of initial edges whose partial R-squared falls below the BIC cutoff when evaluated with the initial parent sets. This is a diagnostic, not an exact prediction of final pruning.
 - `mortality_partial_r2_diagnostics.csv` — edge-specific partial-R2 and Delta-BIC evidence for the eight edges incident to 60-day mortality in the initial application graph.
 - `realdata_collinearity_audit.csv` — non-row-level correlation, condition-number, VIF, parity, compositional, and seasonal-block diagnostics.
 - `redundancy_pruning_sensitivity.csv` — fixed-candidate sensitivity after removing four highly redundant representations; designed to isolate the pruning stage from a new NOTEARS optimization.

@@ -17,14 +17,19 @@ larger benchmark:
    specific to uniformly distributed structural coefficients.
 5. Sample-size diagnostic: directly exercise the n-dependent BIC/partial-R2
    cutoff at n in {100, 500, 2000}.
+6. DAGMA generality diagnostic: apply the same BP operator to candidate DAGs
+   from a second continuous-optimization learner.
 """
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import time
 
+import networkx as nx
 import numpy as np
 import pandas as pd
+from dagma.linear import DagmaLinear
 
 from additional_validation_and_realdata import (
     adjacency,
@@ -94,6 +99,34 @@ def fit_candidate_and_bp(T, W, n, seed):
     A0 = adjacency(Wh)
     Abp = prune(X, A0)
     return X, Wh, A0, Abp
+
+
+def initial_pruning_pressure(X, A):
+    """Fraction of current edges below the one-pass BIC partial-R2 cutoff."""
+    n = X.shape[0]
+    cutoff = 1 - n ** (-1 / n)
+    Xc = X - X.mean(axis=0, keepdims=True)
+    below = 0
+    total = int(A.sum())
+    for u, v in np.argwhere(A == 1):
+        parents = list(np.where(A[:, v] == 1)[0])
+        reduced = [p for p in parents if p != u]
+
+        def rss(ps):
+            y = Xc[:, v]
+            if ps:
+                Z = Xc[:, ps]
+                beta = np.linalg.lstsq(Z, y, rcond=None)[0]
+                resid = y - Z @ beta
+            else:
+                resid = y
+            return float(resid @ resid)
+
+        rss_full = rss(parents)
+        rss_reduced = rss(reduced)
+        partial_r2 = max(0.0, 1 - rss_full / rss_reduced)
+        below += int(partial_r2 < cutoff)
+    return below / total if total else 0.0
 
 
 def write_summary(df, groups, path):
@@ -222,11 +255,59 @@ def run_sample_size(out, M):
     ).to_csv(out / "sample_size_diagnostic.csv", index=False)
 
 
+def run_dagma_generality(out, M=10):
+    """Check whether BP also refines candidate DAGs produced by DAGMA."""
+    rows = []
+    for kind, s in [("uniform", 7), ("modnormal", 3)]:
+        for rep in range(M):
+            seed = BASE_SEED + (50000 if kind == "modnormal" else 0) + 1000 * s + rep
+            T = simulate_dag_seeded(10, 20, seed)
+            W = (simulate_weights_seeded(T, s, seed + 1)
+                 if kind == "uniform" else modnormal_weights(T, s, seed + 1))
+            X = simulate_lsem_noise(W, 500, "normal", seed + 2)
+
+            start = time.perf_counter()
+            model = DagmaLinear(loss_type="l2")
+            What = model.fit(
+                X.copy(), lambda1=0.03, w_threshold=0.3, T=5, s=1.0,
+                warm_iter=10000, max_iter=20000, lr=0.0003,
+                checkpoint=500,
+            )
+            runtime = time.perf_counter() - start
+            A0 = (np.abs(What) > 0).astype(int)
+            np.fill_diagonal(A0, 0)
+            if not nx.is_directed_acyclic_graph(nx.DiGraph(A0)):
+                raise RuntimeError("Thresholded DAGMA candidate is not acyclic")
+            Abp = prune(X, A0)
+            if not nx.is_directed_acyclic_graph(nx.DiGraph(Abp)):
+                raise RuntimeError("DAGMA-BP result is not acyclic")
+            pressure = initial_pruning_pressure(X, A0)
+            for name, A in [("DAGMA", A0), ("DAGMA-BP", Abp)]:
+                rows.append(dict(
+                    kind=kind, s=s, d=10, n=500, rep=rep, method=name,
+                    runtime=runtime, h_unthresholded=float(model.h_final),
+                    initial_pruning_pressure=pressure, **metrics(T, A)
+                ))
+    df = pd.DataFrame(rows)
+    df.to_csv(out / "dagma_bp_replicates.csv", index=False)
+    df.groupby(["kind", "s", "method"], as_index=False).agg(
+        fdr=("fdr", "mean"), tpr=("tpr", "mean"), shd=("shd", "mean"),
+        edges=("edges", "mean"), tp=("tp", "mean"), fp=("fp", "mean"),
+        fn=("fn", "mean"),
+        initial_pruning_pressure=("initial_pruning_pressure", "mean"),
+        runtime=("runtime", "mean"),
+        max_h_unthresholded=("h_unthresholded", "max"),
+    ).to_csv(out / "dagma_bp_summary.csv", index=False)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--out", type=Path,
                    default=Path("results/simulation_diagnostics"))
-    p.add_argument("--M", type=int, default=20)
+    p.add_argument("--M", type=int, default=20,
+                   help="Replicates for NOTEARS-based diagnostics")
+    p.add_argument("--dagma-replicates", type=int, default=10,
+                   help="Replicates per DAGMA generality regime")
     args = p.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     run_equal_sparsity_uniform(args.out, args.M)
@@ -234,6 +315,7 @@ def main():
     run_varsortability(args.out, args.M)
     run_standardized_diagnostic(args.out, args.M)
     run_sample_size(args.out, args.M)
+    run_dagma_generality(args.out, args.dagma_replicates)
 
 
 if __name__ == "__main__":

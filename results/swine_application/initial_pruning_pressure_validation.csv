@@ -1,0 +1,2 @@
+candidate_edges,edges_below_cutoff,initial_pruning_pressure,partial_r2_cutoff,analysis,n,actual_exact_deletion_fraction,candidate_to_exact_bic_improvement,greedy_bic_gap,exact_greedy_disagreement_edges,exact_greedy_jaccard
+185.0,104.0,0.5621621621621622,0.003065011079990465,original_scale,2556,0.5297297297297298,603.8531459626101,23.67199424598948,14,0.8526315789473684

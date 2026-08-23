@@ -1,0 +1,5 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+results/smoke_*/
+results/contamination_smoke_*/

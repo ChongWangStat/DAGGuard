@@ -1,0 +1,7 @@
+diagnostic,value,detail
+max_abs_pairwise_correlation,0.9999985734263662,nonproductive_days vs productive_days_rate; signed r=-0.999999
+standardized_continuous_condition_number,1929.247113557193,continuous-variable design matrix
+max_VIF,359551.52365682827,productive_days_rate
+parity_variable_correlation,0.869450091812237,Avg_parity_farrow vs avg_parity_at_farrow
+R2_total_born_from_components,0.9933471395102075,Born_alive_avg + Stillborn_avg + Mummies_avg
+R2_prenatal_losses_from_components,0.9693152865431649,Stillborn_avg + Mummies_avg

@@ -1,22 +1,26 @@
-name: Simulation smoke test
+name: Tests and reproducibility smoke test
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'notears_bp.py'
+      - 'local_bic_refinement.py'
+      - 'candidate_contamination_simulations.py'
+      - 'tests/**'
       - 'reproduce_simulations.py'
       - 'simulation_diagnostics.py'
-      - 'additional_validation_and_realdata.py'
+      - 'additional_noise_sensitivity.py'
       - 'realdata_postselection_diagnostics.py'
       - 'requirements.txt'
       - '.github/workflows/reproduce-primary.yml'
   pull_request:
     paths:
-      - 'notears_bp.py'
+      - 'local_bic_refinement.py'
+      - 'candidate_contamination_simulations.py'
+      - 'tests/**'
       - 'reproduce_simulations.py'
       - 'simulation_diagnostics.py'
-      - 'additional_validation_and_realdata.py'
+      - 'additional_noise_sensitivity.py'
       - 'realdata_postselection_diagnostics.py'
       - 'requirements.txt'
       - '.github/workflows/reproduce-primary.yml'
@@ -43,10 +47,15 @@ jobs:
       - name: Check analysis-script syntax
         run: |
           python -m py_compile \
+            local_bic_refinement.py \
             reproduce_simulations.py \
             simulation_diagnostics.py \
-            additional_validation_and_realdata.py \
-            realdata_postselection_diagnostics.py
+            additional_noise_sensitivity.py \
+            realdata_postselection_diagnostics.py \
+            candidate_contamination_simulations.py
+          python -c "import local_bic_refinement, reproduce_simulations, simulation_diagnostics, additional_noise_sensitivity, realdata_postselection_diagnostics, candidate_contamination_simulations"
+      - name: Run deterministic unit tests
+        run: python -m unittest discover -s tests -v
       - name: Run small reproducibility check
         run: |
           python reproduce_simulations.py \
@@ -60,3 +69,10 @@ jobs:
           test -s results/smoke_test/replicate_metrics.csv
           test -s results/smoke_test/summary.csv
           test -s results/smoke_test/combined.pdf
+      - name: Run fixed-candidate contamination smoke test
+        run: |
+          python candidate_contamination_simulations.py \
+            --replicates 1 \
+            --out results/contamination_smoke_test
+          test -s results/contamination_smoke_test/exact_greedy_paired_summary.csv
+          test -s results/contamination_smoke_test/exact_greedy_contamination_comparison.pdf

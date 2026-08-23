@@ -1,0 +1,6 @@
+column,nonmissing_n,distinct_nonmissing,dtype,authorized_for_grouping,note
+Litters_female_year,2591,390,float64,False,"Annualized reproductive-performance measure, not an identifier."
+PWMFyear,2589,721,float64,False,"Annualized production measure, not an identifier or calendar year."
+Last_week_wean_bred_rate,2592,669,float64,False,"One-week performance rate, not a week index or date."
+SowFarmMed,1075,3,object,False,"Medication category (CTC, Linco, or Mixed), not a sow-farm identifier."
+Year_Quarter,2592,4,int64,False,"Four-level quarter-of-year seasonal covariate; it has no year, date, farm, site, lot, or batch identity and does not define temporal blocks."

@@ -1,0 +1,142 @@
+{
+  "base_seed": 48151623,
+  "replicates": 100,
+  "d": 20,
+  "n": 500,
+  "settings": [
+    {
+      "name": "clean_sparse",
+      "true_edges": 20,
+      "true_max_indegree": 3,
+      "candidate_max_indegree": 4,
+      "false_positive_ratio": 0.0,
+      "missing_ratio": 0.0,
+      "reversal_ratio": 0.0,
+      "weak_fraction": 0.0,
+      "error_regime": "homoskedastic"
+    },
+    {
+      "name": "fp_025",
+      "true_edges": 20,
+      "true_max_indegree": 3,
+      "candidate_max_indegree": 4,
+      "false_positive_ratio": 0.25,
+      "missing_ratio": 0.0,
+      "reversal_ratio": 0.0,
+      "weak_fraction": 0.0,
+      "error_regime": "homoskedastic"
+    },
+    {
+      "name": "fp_050",
+      "true_edges": 20,
+      "true_max_indegree": 3,
+      "candidate_max_indegree": 5,
+      "false_positive_ratio": 0.5,
+      "missing_ratio": 0.0,
+      "reversal_ratio": 0.0,
+      "weak_fraction": 0.0,
+      "error_regime": "homoskedastic"
+    },
+    {
+      "name": "fp_100",
+      "true_edges": 20,
+      "true_max_indegree": 3,
+      "candidate_max_indegree": 6,
+      "false_positive_ratio": 1.0,
+      "missing_ratio": 0.0,
+      "reversal_ratio": 0.0,
+      "weak_fraction": 0.0,
+      "error_regime": "homoskedastic"
+    },
+    {
+      "name": "missing_010",
+      "true_edges": 20,
+      "true_max_indegree": 3,
+      "candidate_max_indegree": 4,
+      "false_positive_ratio": 0.0,
+      "missing_ratio": 0.1,
+      "reversal_ratio": 0.0,
+      "weak_fraction": 0.0,
+      "error_regime": "homoskedastic"
+    },
+    {
+      "name": "reversal_010",
+      "true_edges": 20,
+      "true_max_indegree": 3,
+      "candidate_max_indegree": 4,
+      "false_positive_ratio": 0.0,
+      "missing_ratio": 0.0,
+      "reversal_ratio": 0.1,
+      "weak_fraction": 0.0,
+      "error_regime": "homoskedastic"
+    },
+    {
+      "name": "weak_fp",
+      "true_edges": 20,
+      "true_max_indegree": 3,
+      "candidate_max_indegree": 5,
+      "false_positive_ratio": 0.5,
+      "missing_ratio": 0.0,
+      "reversal_ratio": 0.0,
+      "weak_fraction": 0.3,
+      "error_regime": "homoskedastic"
+    },
+    {
+      "name": "dense_moderate",
+      "true_edges": 40,
+      "true_max_indegree": 5,
+      "candidate_max_indegree": 7,
+      "false_positive_ratio": 0.5,
+      "missing_ratio": 0.0,
+      "reversal_ratio": 0.0,
+      "weak_fraction": 0.0,
+      "error_regime": "homoskedastic"
+    },
+    {
+      "name": "dense_high_indegree",
+      "true_edges": 40,
+      "true_max_indegree": 7,
+      "candidate_max_indegree": 10,
+      "false_positive_ratio": 1.0,
+      "missing_ratio": 0.0,
+      "reversal_ratio": 0.0,
+      "weak_fraction": 0.0,
+      "error_regime": "homoskedastic"
+    },
+    {
+      "name": "lowvar_heterogeneous",
+      "true_edges": 20,
+      "true_max_indegree": 3,
+      "candidate_max_indegree": 4,
+      "false_positive_ratio": 0.0,
+      "missing_ratio": 0.0,
+      "reversal_ratio": 0.0,
+      "weak_fraction": 0.0,
+      "error_regime": "lowvar_heterogeneous"
+    },
+    {
+      "name": "lowvar_weak_fp",
+      "true_edges": 20,
+      "true_max_indegree": 3,
+      "candidate_max_indegree": 6,
+      "false_positive_ratio": 0.5,
+      "missing_ratio": 0.0,
+      "reversal_ratio": 0.0,
+      "weak_fraction": 0.3,
+      "error_regime": "lowvar_heterogeneous"
+    },
+    {
+      "name": "combined_contamination",
+      "true_edges": 40,
+      "true_max_indegree": 5,
+      "candidate_max_indegree": 8,
+      "false_positive_ratio": 0.5,
+      "missing_ratio": 0.1,
+      "reversal_ratio": 0.1,
+      "weak_fraction": 0.3,
+      "error_regime": "lowvar_heterogeneous"
+    }
+  ],
+  "shd_convention": "one operation per reversal",
+  "gumbel_used": false
+}

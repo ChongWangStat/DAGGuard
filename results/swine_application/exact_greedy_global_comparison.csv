@@ -1,0 +1,2 @@
+analysis,n,d,candidate_edges,exact_edges,greedy_edges,candidate_bic,exact_bic,greedy_bic,greedy_bic_gap,exact_greedy_jaccard,exact_method,exact_certified,exact_seconds,greedy_seconds,exact_score_evaluations,greedy_score_evaluations
+original_scale,2556,37,185,87,89,239193.69927512915,238589.84612916654,238613.51812341253,23.67199424598948,0.8526315789473684,exact-hybrid,True,1915.027645300026,2.444854300003499,1974607,1890

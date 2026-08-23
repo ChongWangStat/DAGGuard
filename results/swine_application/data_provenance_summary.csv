@@ -1,0 +1,2 @@
+source_file,sha256,source_rows,source_columns,complete_case_rows,analysis_variables,excluded_incomplete_rows
+train2023cw_simple.csv,b933fd66f49fd381bb9698ee2b3f5835d0db8d01820a01d5e45c9ac3a7bf5156,2592,43,2556,37,36

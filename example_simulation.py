@@ -1,9 +1,10 @@
 """
-Synthetic example for NOTEARS-BP.
+Synthetic example for exact and greedy local-BIC refinement.
 
 This example generates a true DAG, simulates linear-Gaussian data,
 adds false-positive edges to create an initial estimated DAG, and then
-uses BIC pruning to remove unsupported edges.
+uses exact local subset selection and greedy deletion to remove unsupported
+edges from the same fixed candidate DAG.
 
 Run:
     python example_simulation.py
@@ -11,7 +12,12 @@ Run:
 
 import numpy as np
 
-from notears_bp import bic_prune_dag, compare_to_truth, edge_counts, is_acyclic
+from local_bic_refinement import (
+    exact_refine_dag,
+    graph_metrics,
+    greedy_refine_dag,
+    is_acyclic,
+)
 
 
 def random_dag(d: int, expected_edges: int, rng: np.random.Generator) -> np.ndarray:
@@ -116,24 +122,29 @@ def main() -> None:
     X = simulate_linear_sem(A_true, n=n, rng=rng)
 
     A_initial = add_false_positive_edges(A_true, n_extra=10, rng=rng)
-    result = bic_prune_dag(X, A_initial)
+    exact = exact_refine_dag(X, A_initial)
+    greedy = greedy_refine_dag(X, A_initial)
 
-    print("Synthetic NOTEARS-BP example")
-    print("----------------------------")
-    print(f"True edges:       {edge_counts(A_true)}")
-    print(f"Initial edges:    {edge_counts(A_initial)}")
-    print(f"Pruned edges:     {edge_counts(result.adjacency)}")
-    print(f"Removed edges:    {len(result.removed_edges)}")
-    print(f"BIC evaluations:  {result.n_bic_evaluations}")
-    print(f"BIC improvement:  {result.total_bic_improvement:.3f}")
+    print("Fixed-candidate local-BIC refinement example")
+    print("--------------------------------------------")
+    print(f"True edges:       {int(A_true.sum())}")
+    print(f"Candidate edges:  {int(A_initial.sum())}")
+    print(f"Exact edges:      {int(exact.adjacency.sum())}")
+    print(f"Greedy edges:     {int(greedy.adjacency.sum())}")
+    print(f"Exact certified:  {exact.globally_optimal}")
+    print(f"Greedy BIC gap:   {greedy.total_bic - exact.total_bic:.6f}")
     print()
 
     print("Initial graph diagnostics")
-    print(compare_to_truth(A_initial, A_true))
+    print(graph_metrics(A_true, A_initial))
     print()
 
-    print("Pruned graph diagnostics")
-    print(compare_to_truth(result.adjacency, A_true))
+    print("Exact-refinement diagnostics")
+    print(graph_metrics(A_true, exact.adjacency))
+    print()
+
+    print("Greedy-refinement diagnostics")
+    print(graph_metrics(A_true, greedy.adjacency))
 
 
 if __name__ == "__main__":

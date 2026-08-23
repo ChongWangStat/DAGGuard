@@ -2,7 +2,7 @@
 
 The commercial swine-production observations are proprietary and are not included in this repository. This file documents the 37 variables used after preprocessing so that the public analysis workflow can be inspected without exposing row-level records.
 
-The complete-case analysis in the manuscript contained 2,556 rows. The six indicator variables are constructed by `additional_validation_and_realdata.py`; all remaining variables are numeric production measures retained from the authorized source file.
+The source file contains 2,592 rows; the complete-case analysis contains 2,556. The six indicator variables are constructed by the authorized-data workflow; all remaining variables are numeric production measures retained from the source file.
 
 | Variable | Analysis type | Description / construction |
 |---|---|---|
@@ -44,6 +44,10 @@ The complete-case analysis in the manuscript contained 2,556 rows. The six indic
 | `HeadIn` | continuous | pigs placed into the nursery |
 | `mortality_60days` | continuous | nursery mortality during the first 60 days post-placement |
 
+## Grouping and time-field audit
+
+The source field `Year_Quarter` contains only the values 1–4. It encodes quarter of year and is used to construct Q2–Q4 seasonal indicators; it does not contain calendar year, dates, or a sequential time index. `SowFarmMed` contains medication categories (CTC, Linco, and Mixed), not a sow-farm identifier. Other name-matched fields are production measurements or rates, not dates or grouping identifiers. The authorized analysis file therefore contains no farm, site, batch, or other defensible operational grouping field. The workflow does not impose temporal constraints or report a blocked/cluster bootstrap. Its effective-sample-size analysis is labeled as an illustrative sensitivity, not cluster-corrected inference.
+
 ## Mixed-variable diagnostic
 
-In the 190-edge initial NOTEARS graph reported in the manuscript, all six binary indicator nodes had in-degree zero. Thus every edge considered by NOTEARS-BP had a continuous child, so the Gaussian local BIC was not used as a binary-response likelihood on the reported pruning path. This fact does not validate the mixed-variable NOTEARS initialization; the manuscript therefore also reports a continuous-variable-only sensitivity analysis.
+In the pinned 185-edge NOTEARS candidate, all six binary indicator nodes had in-degree zero. Thus every edge considered by the reported local-BIC refinements had a continuous child, so Gaussian local BIC was not used as a binary-response likelihood on those paths. This fact does not validate the mixed-variable NOTEARS initialization; it remains a working model, and type-specific decomposable scores are the natural extension when binary children occur.

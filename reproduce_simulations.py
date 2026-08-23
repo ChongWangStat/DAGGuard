@@ -2,8 +2,9 @@
 """Reproduce the NOTEARS-BP primary simulation design.
 
 The script implements the manuscript design for d in {10, 20, 40} using the
-same seed schedule, NOTEARS estimator, BIC pruning rule, GES/PC/LiNGAM
-comparators, and directed-edge metrics. It also exports skeleton metrics so
+same seed schedule, NOTEARS estimator, exact and greedy local-BIC refinement,
+GES/PC comparators, and canonical directed-edge metrics. It also exports
+skeleton metrics so
 that the adjacency recovery of equivalence-class methods can be inspected
 without requiring all edges to be oriented.
 
@@ -21,7 +22,6 @@ import random
 from pathlib import Path
 
 import igraph as ig
-import lingam
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -36,12 +36,51 @@ from causallearn.utils.cit import fisherz
 from joblib import Parallel, delayed
 from scipy.stats import norm
 
+from local_bic_refinement import (
+    candidate_indegree_summary,
+    edge_jaccard,
+    exact_refine_dag,
+    graph_metrics,
+    greedy_refine_dag,
+    total_gaussian_bic,
+)
+
 BASE_SEED = 12123
 LAMBDA1 = 0.1
 THRESHOLD = 0.3
 N_SAMPLES = 500
-METHODS = ["GES", "PC", "LiNGAM", "NOTEARS", "NOTEARS-BP"]
+METHODS = ["GES", "PC", "NOTEARS", "Local-BIC exact", "Local-BIC greedy"]
 S_VALUES = {"uniform": [1, 4, 7, 10], "modnormal": [1, 2, 3, 4]}
+
+
+def thresholded_candidate_dag(W, threshold=THRESHOLD):
+    """Create a deterministic acyclic candidate from numerical NOTEARS output.
+
+    Edges above the threshold are considered in decreasing absolute weight and
+    retained only when they preserve acyclicity.  The safeguard is a no-op when
+    the thresholded graph is already acyclic.  The second return value is the
+    number of threshold-passing edges omitted solely to break numerical cycles.
+    """
+    W = np.asarray(W, dtype=float)
+    d = W.shape[0]
+    eligible = [
+        (abs(float(W[u, v])), int(u), int(v))
+        for u, v in np.argwhere(np.abs(W) > threshold)
+        if u != v
+    ]
+    eligible.sort(key=lambda item: (-item[0], item[1], item[2]))
+    A = np.zeros((d, d), dtype=int)
+    graph = nx.DiGraph()
+    graph.add_nodes_from(range(d))
+    omitted = 0
+    for _, u, v in eligible:
+        graph.add_edge(u, v)
+        if nx.is_directed_acyclic_graph(graph):
+            A[u, v] = 1
+        else:
+            graph.remove_edge(u, v)
+            omitted += 1
+    return A, omitted
 
 
 def notears_linear(X, lambda1=0.0, max_iter=100, h_tol=1e-8,
@@ -96,6 +135,8 @@ def notears_linear(X, lambda1=0.0, max_iter=100, h_tol=1e-8,
         if h <= h_tol or rho >= rho_max:
             break
     W_est = _adj(w_est)
+    if not np.all(np.isfinite(W_est)):
+        raise RuntimeError("NOTEARS optimization returned non-finite edge weights")
     W_est[np.abs(W_est) < w_threshold] = 0
     return W_est
 
@@ -149,77 +190,6 @@ def simulate_parameter_modnormal(B, s):
     return W
 
 
-def loglk_bic(X, G):
-    """Global sum of local Gaussian BIC contributions for a DAG."""
-    n, d = X.shape
-    Xc = X - np.mean(X, axis=0, keepdims=True)
-    logL = 0.0
-    for i in range(d):
-        parents = list(G.predecessors(i))
-        if not parents:
-            residual = Xc[:, i]
-        else:
-            beta = np.linalg.lstsq(Xc[:, parents], Xc[:, i], rcond=None)[0]
-            residual = Xc[:, i] - Xc[:, parents] @ beta
-        sigma2 = max(float((residual ** 2).mean()), 1e-300)
-        logL += -0.5 * n * (np.log(2 * np.pi * sigma2) + 1)
-    k = np.count_nonzero(nx.to_numpy_array(G, dtype=int)) + d
-    return -2 * logL + k * np.log(n)
-
-
-def subgraph_with_parents(G, child):
-    out = nx.DiGraph()
-    out.add_nodes_from(G.nodes())
-    for parent in G.predecessors(child):
-        out.add_edge(parent, child)
-    return out
-
-
-def greedy_edge_removal(X, G):
-    """Greedy backward deletion using decomposable Gaussian BIC."""
-    Xc = X - np.mean(X, axis=0, keepdims=True)
-    improved = True
-    while improved and len(G.edges()) > 0:
-        improved = False
-        candidates = []
-        for u, v in list(G.edges()):
-            G_temp = G.copy()
-            before = subgraph_with_parents(G_temp, v)
-            G_temp.remove_edge(u, v)
-            after = subgraph_with_parents(G_temp, v)
-            try:
-                delta = loglk_bic(Xc, after) - loglk_bic(Xc, before)
-            except Exception:
-                continue
-            candidates.append(((u, v), delta))
-        if not candidates:
-            break
-        edge, delta = min(candidates, key=lambda x: x[1])
-        if delta < 0:
-            G.remove_edge(*edge)
-            improved = True
-    return G
-
-
-def directed_shd(A_true, A_est):
-    count = np.sum(np.abs(A_true - A_est))
-    n = A_true.shape[0]
-    for i in range(n):
-        for j in range(n):
-            if (A_true[i, j] == 1 and A_est[i, j] == 0
-                    and A_est[j, i] == 1):
-                count -= 1
-    return float(count)
-
-
-def directed_metrics(A_true, A_est):
-    est = np.sum(np.abs(A_est))
-    true = np.sum(np.abs(A_true))
-    fdr = np.sum(A_est - A_true == 1) / est if est else np.nan
-    fnr = np.sum(A_est - A_true == -1) / true if true else np.nan
-    return float(fdr), float(1 - fnr), directed_shd(A_true, A_est)
-
-
 def skeleton(A):
     return ((A != 0) | (A.T != 0)).astype(int)
 
@@ -263,9 +233,16 @@ def run_one(d, s, weight_kind, rep):
     X = simulate_lsem(nx.DiGraph(W), n=N_SAMPLES)
 
     W0 = notears_linear(X, lambda1=LAMBDA1)
-    A_note = (np.abs(W0) > THRESHOLD).astype(int)
-    A_bp = nx.to_numpy_array(greedy_edge_removal(X, nx.DiGraph(A_note)),
-                             dtype=int)
+    A_note, cycle_edges_omitted = thresholded_candidate_dag(W0, THRESHOLD)
+    exact = exact_refine_dag(X, A_note)
+    if not exact.globally_optimal:
+        raise RuntimeError("Exact local-BIC search was not certified")
+    greedy = greedy_refine_dag(X, A_note)
+    A_exact = exact.adjacency
+    A_greedy = greedy.adjacency
+    candidate = candidate_indegree_summary(A_note)
+    greedy_gap = greedy.total_bic - exact.total_bic
+    agreement = edge_jaccard(A_exact, A_greedy)
 
     ges_graph = ges(X)["G"]
     A_ges = causal_learn_directed(ges_graph.graph)
@@ -280,35 +257,47 @@ def run_one(d, s, weight_kind, rep):
     A_pc = causal_learn_directed(pc_graph.graph)
     S_pc = causal_learn_skeleton(pc_graph.graph)
 
-    model = lingam.DirectLiNGAM()
-    model.fit(X)
-    A_lingam = (np.abs(model.adjacency_matrix_.T) > 0).astype(int)
-
     rows = []
     for method, A, S in [
         ("GES", A_ges, S_ges),
         ("PC", A_pc, S_pc),
-        ("LiNGAM", A_lingam, skeleton(A_lingam)),
         ("NOTEARS", A_note, skeleton(A_note)),
-        ("NOTEARS-BP", A_bp, skeleton(A_bp)),
+        ("Local-BIC exact", A_exact, skeleton(A_exact)),
+        ("Local-BIC greedy", A_greedy, skeleton(A_greedy)),
     ]:
-        fdr, tpr, shd = directed_metrics(B, A)
+        metrics = graph_metrics(B, A)
         sfdr, stpr, sshd = skeleton_metrics(B, S)
         rows.append({
             "d": d, "weight_kind": weight_kind, "s": s, "rep": rep,
-            "seed": seed, "method": method, "fdr": fdr, "tpr": tpr,
-            "shd": shd, "skeleton_fdr": sfdr, "skeleton_tpr": stpr,
+            "seed": seed, "method": method, "fdr": metrics["fdr"],
+            "tpr": metrics["tpr"], "shd": metrics["shd"],
+            "tp": metrics["true_positives"],
+            "fp": metrics["false_positives"],
+            "fn": metrics["false_negatives"],
+            "reversals": metrics["reversals"],
+            "skeleton_fdr": sfdr, "skeleton_tpr": stpr,
             "skeleton_shd": sshd, "true_edges": int(B.sum()),
-            "estimated_edges": int(A.sum())
+            "estimated_edges": int(A.sum()),
+            "candidate_max_indegree": candidate["maximum_indegree"],
+            "candidate_enumeration_fits": candidate["enumeration_fits"],
+            "candidate_bic": total_gaussian_bic(X, A_note),
+            "exact_bic": exact.total_bic,
+            "greedy_bic": greedy.total_bic,
+            "greedy_bic_gap": greedy_gap,
+            "exact_greedy_jaccard": agreement,
+            "greedy_suboptimal": bool(greedy_gap > 1e-8),
+            "exact_runtime_seconds": exact.runtime_seconds,
+            "greedy_runtime_seconds": greedy.runtime_seconds,
+            "numerical_cycle_edges_omitted": cycle_edges_omitted,
         })
     return rows
 
 
 def draw_metric(df, metric, title, ylabel, s_values, out_base):
-    colors = {"GES": "orange", "PC": "green", "LiNGAM": "yellow",
-              "NOTEARS": "blue", "NOTEARS-BP": "red"}
-    offsets = {"GES": -0.40, "PC": -0.24, "LiNGAM": -0.08,
-               "NOTEARS": 0.08, "NOTEARS-BP": 0.24}
+    colors = {"GES": "#E69F00", "PC": "#009E73", "NOTEARS": "#0072B2",
+              "Local-BIC exact": "#D55E00", "Local-BIC greedy": "#CC79A7"}
+    offsets = {method: offset for method, offset in zip(
+        METHODS, np.linspace(-0.32, 0.32, len(METHODS)))}
     fig, ax = plt.subplots(figsize=(18, 5))
     handles = []
     for method in METHODS:
@@ -339,10 +328,10 @@ def draw_metric(df, metric, title, ylabel, s_values, out_base):
 
 def draw_combined(df, s_values, out_base):
     fig, axes = plt.subplots(3, 1, figsize=(18, 15))
-    colors = {"GES": "orange", "PC": "green", "LiNGAM": "yellow",
-              "NOTEARS": "blue", "NOTEARS-BP": "red"}
-    offsets = {"GES": -0.40, "PC": -0.24, "LiNGAM": -0.08,
-               "NOTEARS": 0.08, "NOTEARS-BP": 0.24}
+    colors = {"GES": "#E69F00", "PC": "#009E73", "NOTEARS": "#0072B2",
+              "Local-BIC exact": "#D55E00", "Local-BIC greedy": "#CC79A7"}
+    offsets = {method: offset for method, offset in zip(
+        METHODS, np.linspace(-0.32, 0.32, len(METHODS)))}
     for ax, metric, title, ylabel in zip(
             axes, ["fdr", "tpr", "shd"],
             ["False Discovery Rate", "True Positive Rate", "SHD"],
@@ -402,7 +391,14 @@ def main():
         skeleton_fdr_mean=("skeleton_fdr", "mean"),
         skeleton_tpr_mean=("skeleton_tpr", "mean"),
         skeleton_shd_mean=("skeleton_shd", "mean"),
-        estimated_edges_mean=("estimated_edges", "mean"))
+        estimated_edges_mean=("estimated_edges", "mean"),
+        tp_mean=("tp", "mean"), fp_mean=("fp", "mean"),
+        fn_mean=("fn", "mean"), reversals_mean=("reversals", "mean"),
+        greedy_suboptimal_frequency=("greedy_suboptimal", "mean"),
+        greedy_bic_gap_mean=("greedy_bic_gap", "mean"),
+        exact_greedy_jaccard_mean=("exact_greedy_jaccard", "mean"),
+        exact_runtime_seconds_mean=("exact_runtime_seconds", "mean"),
+        greedy_runtime_seconds_mean=("greedy_runtime_seconds", "mean"))
     summary.to_csv(args.out / "summary.csv", index=False)
 
     config = {

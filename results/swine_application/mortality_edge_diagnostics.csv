@@ -1,0 +1,9 @@
+from,to,candidate_weight,exact_status,greedy_status,comparison,partial_r2,bic_cost_of_changing_exact_decision,bic_partial_r2_cutoff
+PRRS_binary,mortality_60days,0.36143887395085605,retained,retained,delete from exact model,0.11766832250780423,312.1323919577653,0.003065011079990465
+MYCO_binary,mortality_60days,0.5267824119069798,retained,retained,delete from exact model,0.04335202676015759,105.43520808003723,0.003065011079990465
+Q3,mortality_60days,-0.360567727907676,retained,retained,delete from exact model,0.012692720013145364,24.804044886904194,0.003065011079990465
+Stillborn_avg,mortality_60days,0.33925839504843236,retained,retained,delete from exact model,0.018738192203056836,40.50303720613192,0.003065011079990465
+mortality_60days,mated_inventory_20wks,-2.8473289203914187,removed,removed,add to exact model,0.0003050556725753273,7.066357562845951,0.003065011079990465
+mortality_60days,PWMFyear,-2.3542562313044053,removed,removed,add to exact model,0.00021451013378537276,7.297852098472504,0.003065011079990465
+mortality_60days,final_inventory,1.2964221235879898,removed,removed,add to exact model,9.628811478745725e-05,7.600074544487143,0.003065011079990465
+mortality_60days,HeadIn,2.3918286437048053,removed,removed,add to exact model,5.158777611946608e-05,7.71433705848176,0.003065011079990465

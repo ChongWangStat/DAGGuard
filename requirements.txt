@@ -7,5 +7,3 @@ matplotlib==3.10.0
 joblib==1.5.3
 causal-learn==0.1.4.4
 python-igraph==1.0.0
-lingam==1.12.1
-dagma==1.1.0

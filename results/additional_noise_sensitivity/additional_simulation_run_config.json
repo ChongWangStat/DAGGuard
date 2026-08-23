@@ -1,0 +1,22 @@
+{
+  "base_seed": 12123,
+  "replicates_per_setting": 20,
+  "n": 500,
+  "d": [
+    10,
+    20
+  ],
+  "s": [
+    2,
+    5
+  ],
+  "noise": [
+    "normal",
+    "exponential",
+    "gumbel"
+  ],
+  "gumbel_scale": 0.779696801233676,
+  "gumbel_center": "beta * Euler gamma",
+  "gumbel_variance": 1.0,
+  "shd_convention": "one operation per reversal"
+}

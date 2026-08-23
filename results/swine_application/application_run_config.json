@@ -1,0 +1,23 @@
+{
+  "branch_node_limit": 2000000,
+  "candidate_edges": 185,
+  "candidate_weight_threshold": 0.3,
+  "d": 37,
+  "enumeration_max_parents": 15,
+  "lambda1": 0.1,
+  "n": 2556,
+  "packages": {
+    "causal-learn": "0.1.4.4",
+    "joblib": "1.5.3",
+    "matplotlib": "3.10.0",
+    "networkx": "3.6.1",
+    "numpy": "2.0.2",
+    "pandas": "2.2.2",
+    "python-igraph": "1.0.0",
+    "scikit-learn": "1.6.1",
+    "scipy": "1.16.3"
+  },
+  "python": "3.12.13",
+  "source_file": "train2023cw_simple.csv",
+  "source_sha256": "b933fd66f49fd381bb9698ee2b3f5835d0db8d01820a01d5e45c9ac3a7bf5156"
+}

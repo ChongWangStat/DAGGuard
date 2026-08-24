@@ -15,7 +15,7 @@ The source file contains 2,592 rows; the complete-case analysis contains 2,556. 
 | `Avg_parity_farrow` | continuous/numeric | derived four-level average-parity-at-farrow covariate in the source data |
 | `Litters_female_year` | continuous | litters per female per year |
 | `mated_inventory_20wks` | continuous | mated-female inventory measure over the source-data 20-week window |
-| `PWMFyear` | continuous | pre-weaning mortality factor |
+| `PWMFyear` | continuous | pigs weaned per mated female per year |
 | `nonproductive_days` | continuous | nonproductive days |
 | `number_services` | continuous | number of breeding services |
 | `wean_to_service` | continuous | weaning-to-service interval |
@@ -46,7 +46,7 @@ The source file contains 2,592 rows; the complete-case analysis contains 2,556. 
 
 ## Grouping and time-field audit
 
-The source field `Year_Quarter` contains only the values 1–4. It encodes quarter of year and is used to construct Q2–Q4 seasonal indicators; it does not contain calendar year, dates, or a sequential time index. `SowFarmMed` contains medication categories (CTC, Linco, and Mixed), not a sow-farm identifier. Other name-matched fields are production measurements or rates, not dates or grouping identifiers. The authorized analysis file therefore contains no farm, site, batch, or other defensible operational grouping field. The workflow does not impose temporal constraints or report a blocked/cluster bootstrap. Its effective-sample-size analysis is labeled as an illustrative sensitivity, not cluster-corrected inference.
+The source field `Year_Quarter` contains only the values 1-4. It encodes quarter of year and is used to construct Q2-Q4 seasonal indicators; it does not contain calendar year, dates, or a sequential time index. `SowFarmMed` contains medication categories (CTC, Linco, and Mixed), not a sow-farm identifier. Other name-matched fields are production measurements or rates, not dates or grouping identifiers. The authorized analysis file therefore contains no farm, site, batch, or other defensible operational grouping field. The workflow does not impose temporal constraints or report a blocked/cluster bootstrap. Its effective-sample-size analysis is labeled as an illustrative sensitivity, not cluster-corrected inference.
 
 ## Mixed-variable diagnostic
 

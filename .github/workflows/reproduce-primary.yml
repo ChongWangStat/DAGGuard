@@ -15,6 +15,9 @@ on:
       - 'reproduce_simulations.py'
       - 'simulation_diagnostics.py'
       - 'additional_noise_sensitivity.py'
+      - 'notears_tuning_sensitivity.py'
+      - 'synthetic_application_twin.py'
+      - 'reproduce_submission.sh'
       - 'realdata_postselection_diagnostics.py'
       - 'requirements.txt'
       - '.github/workflows/reproduce-primary.yml'
@@ -27,6 +30,10 @@ on:
       - 'tests/**'
       - 'reproduce_simulations.py'
       - 'candidate_contamination_simulations.py'
+      - 'additional_noise_sensitivity.py'
+      - 'notears_tuning_sensitivity.py'
+      - 'synthetic_application_twin.py'
+      - 'reproduce_submission.sh'
       - 'requirements.txt'
       - '.github/workflows/reproduce-primary.yml'
 
@@ -64,6 +71,8 @@ jobs:
             benchmarks/seven_method/swine_benchmark.py \
             reproduce_simulations.py \
             additional_noise_sensitivity.py \
+            notears_tuning_sensitivity.py \
+            synthetic_application_twin.py \
             realdata_postselection_diagnostics.py \
             candidate_contamination_simulations.py
           python -c "import dagguard; import benchmarks.seven_method.pcp_faithful; import benchmarks.seven_method.wang_sensitivity"
@@ -71,6 +80,10 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Run DAGGuard quickstart
         run: python -m examples.dagguard_quickstart
+      - name: Run synthetic application twin
+        run: |
+          python synthetic_application_twin.py --out results/synthetic_application_twin
+          test -s results/synthetic_application_twin/summary.csv
       - name: Run small reproducibility check
         run: |
           python reproduce_simulations.py \

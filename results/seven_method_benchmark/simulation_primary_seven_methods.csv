@@ -1,0 +1,8 @@
+method,n,pooled_skeleton_false_discovery_proportion,pooled_skeleton_tpr,mean_skeleton_shd,mean_selected_adjacencies,notes
+NOTEARS,240,0.1481226791362949,0.8602777777777778,8.679166666666667,30.29583333333333,Same 240 end-to-end simulation datasets; NOTEARS/DAGGuard skeleton counts reconstructed from pinned directed outputs.
+NOTEARS + DAGGuard-Greedy,240,0.0661720169594185,0.8565277777777778,6.125,27.516666666666666,Same 240 end-to-end simulation datasets; NOTEARS/DAGGuard skeleton counts reconstructed from pinned directed outputs.
+NOTEARS + DAGGuard-Exact,240,0.0656160024246097,0.8563888888888889,6.1125,27.495833333333334,Same 240 end-to-end simulation datasets; NOTEARS/DAGGuard skeleton counts reconstructed from pinned directed outputs.
+"Wang et al. (2026) hybrid structural pipeline, tertile-adapted (published setting A)",240,0.5313910545752975,0.3172222222222222,31.275,20.308333333333334,Published thresholds; continuous variables tertile-adapted. Common endpoint is the final skeleton after structural Steps 1-3; Step 4 only orients and is not used for the skeleton metric.
+"Li & Wang (2009) PC-FDR, q=0.05",240,0.2002854424357754,0.4669444444444444,19.5,17.516666666666666,Algorithm 3 style PC-FDR; Fisher-z; paper practical H*=H step-up choice.
+"Strobl, Spirtes & Visweswaran (2019) PC-p, q=0.05",240,0.1036357458375807,0.3663888888888889,20.279166666666665,12.2625,Faithful Python port audited against official MATLAB source; Fisher-z; official BY control; no orientation conflicts in 240 runs.
+"Ordinary PC, alpha=0.05",240,0.2127059843885516,0.5043055555555556,18.95833333333333,19.216666666666665,Tetrad-style ordered-pair PC skeleton search with immediate graph updates; Fisher-z.

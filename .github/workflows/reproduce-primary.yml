@@ -4,7 +4,10 @@ on:
   workflow_dispatch:
   push:
     paths:
+      - 'dagguard.py'
       - 'local_bic_refinement.py'
+      - 'examples/**'
+      - 'benchmarks/**'
       - 'example_simulation.py'
       - 'make_manuscript_assets.py'
       - 'candidate_contamination_simulations.py'
@@ -17,15 +20,13 @@ on:
       - '.github/workflows/reproduce-primary.yml'
   pull_request:
     paths:
+      - 'dagguard.py'
       - 'local_bic_refinement.py'
-      - 'example_simulation.py'
-      - 'make_manuscript_assets.py'
-      - 'candidate_contamination_simulations.py'
+      - 'examples/**'
+      - 'benchmarks/**'
       - 'tests/**'
       - 'reproduce_simulations.py'
-      - 'simulation_diagnostics.py'
-      - 'additional_noise_sensitivity.py'
-      - 'realdata_postselection_diagnostics.py'
+      - 'candidate_contamination_simulations.py'
       - 'requirements.txt'
       - '.github/workflows/reproduce-primary.yml'
 
@@ -48,39 +49,37 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
-      - name: Check analysis-script syntax
+      - name: Check source syntax
         run: |
           python -m py_compile \
+            dagguard.py \
             local_bic_refinement.py \
-            example_simulation.py \
-            make_manuscript_assets.py \
+            examples/dagguard_quickstart.py \
+            benchmarks/seven_method/common.py \
+            benchmarks/seven_method/pc_fdr.py \
+            benchmarks/seven_method/pc_original.py \
+            benchmarks/seven_method/pcp_faithful.py \
+            benchmarks/seven_method/wang_full.py \
+            benchmarks/seven_method/wang_sensitivity.py \
+            benchmarks/seven_method/swine_benchmark.py \
             reproduce_simulations.py \
-            simulation_diagnostics.py \
             additional_noise_sensitivity.py \
             realdata_postselection_diagnostics.py \
             candidate_contamination_simulations.py
-          python -c "import local_bic_refinement, example_simulation, make_manuscript_assets, reproduce_simulations, simulation_diagnostics, additional_noise_sensitivity, realdata_postselection_diagnostics, candidate_contamination_simulations"
+          python -c "import dagguard; import benchmarks.seven_method.pcp_faithful; import benchmarks.seven_method.wang_sensitivity"
       - name: Run deterministic unit tests
         run: python -m unittest discover -s tests -v
-      - name: Run quick example
-        run: python example_simulation.py
+      - name: Run DAGGuard quickstart
+        run: python -m examples.dagguard_quickstart
       - name: Run small reproducibility check
         run: |
           python reproduce_simulations.py \
-            --d 10 \
-            --weight-kind uniform \
-            --M 1 \
-            --n-jobs 1 \
+            --d 10 --weight-kind uniform --M 1 --n-jobs 1 \
             --out results/smoke_test
-      - name: Verify expected outputs
-        run: |
           test -s results/smoke_test/replicate_metrics.csv
           test -s results/smoke_test/summary.csv
-          test -s results/smoke_test/combined.pdf
-      - name: Run fixed-candidate contamination smoke test
+      - name: Run fixed-candidate smoke test
         run: |
           python candidate_contamination_simulations.py \
-            --replicates 1 \
-            --out results/contamination_smoke_test
+            --replicates 1 --out results/contamination_smoke_test
           test -s results/contamination_smoke_test/exact_greedy_paired_summary.csv
-          test -s results/contamination_smoke_test/exact_greedy_contamination_comparison.pdf

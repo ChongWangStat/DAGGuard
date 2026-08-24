@@ -1,0 +1,15 @@
+variable,NOTEARS,DAGGuard-Greedy,DAGGuard-Exact,Wang2026-adapted-A,PC-FDR-q05,PC-p-q05,Ordinary-PC,methods_supporting_adjacency
+PRRS_binary,True,True,True,True,True,True,True,7
+MYCO_binary,True,True,True,False,True,True,True,6
+Q3,True,True,True,False,True,True,True,6
+abortions_rate,False,False,False,True,True,True,True,4
+repeats__rate,False,False,False,True,True,True,True,4
+Stillborn_avg,True,True,True,False,False,False,False,3
+pregnant_105days_rate,False,False,False,True,False,True,True,3
+Born_alive_avg,False,False,False,False,False,False,True,1
+Farrowing__rate,False,False,False,True,False,False,False,1
+HeadIn,True,False,False,False,False,False,False,1
+PWMFyear,True,False,False,False,False,False,False,1
+Pre_weaning_mortality,False,False,False,False,False,False,True,1
+final_inventory,True,False,False,False,False,False,False,1
+mated_inventory_20wks,True,False,False,False,False,False,False,1

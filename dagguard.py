@@ -62,6 +62,9 @@ def _validate_candidate_full_rank(X, candidate_adjacency, rank_tolerance=None):
     column rank after centering. Every deletion subset is then also full rank.
     Rank-deficient candidates should first remove redundant predictors or use a
     score explicitly designed for singular models.
+
+    When ``rank_tolerance`` is supplied, it is interpreted as a relative
+    singular-value cutoff, matching NumPy least-squares ``rcond`` semantics.
     """
     X = np.asarray(X, dtype=float)
     A = (np.asarray(candidate_adjacency) != 0).astype(np.int8)
@@ -78,7 +81,16 @@ def _validate_candidate_full_rank(X, candidate_adjacency, rank_tolerance=None):
         if q == 0:
             continue
         design = Xc[:, parents]
-        rank = int(np.linalg.matrix_rank(design, tol=rank_tolerance))
+        singular = np.linalg.svd(design, compute_uv=False)
+        if singular.size == 0:
+            rank = 0
+        elif rank_tolerance is None:
+            cutoff = max(design.shape) * np.finfo(float).eps * singular[0]
+            rank = int(np.sum(singular > cutoff))
+        else:
+            if rank_tolerance < 0:
+                raise ValueError("rank_tolerance must be nonnegative")
+            rank = int(np.sum(singular > float(rank_tolerance) * singular[0]))
         if rank < q:
             raise ValueError(
                 "candidate parent design is rank deficient for child "
@@ -117,7 +129,8 @@ def refine_dag(
         certifies score optimality to this tolerance; it does not assert a
         unique representative when distinct subsets are numerically tied.
     rank_tolerance : float or None
-        Tolerance passed to the rank check and least-squares engine.
+        Relative singular-value cutoff used by the public rank check and passed
+        as ``rcond`` to the least-squares engine.
 
     Returns
     -------

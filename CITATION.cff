@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: "DAGGuard: Certified BIC Refinement of Candidate DAGs"
+title: "DAGGuard: Exact and Greedy BIC Refinement of Learned DAGs"
 message: "If you use DAGGuard, please cite the accompanying manuscript."
 type: software
 authors:

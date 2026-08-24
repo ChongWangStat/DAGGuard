@@ -1,10 +1,10 @@
 # DAGGuard
 
-**Certified BIC refinement of candidate directed acyclic graphs**
+**Exact and greedy BIC refinement of learned directed acyclic graphs**
 
 DAGGuard is a post-learning refinement method for an already oriented candidate DAG. Its fixed-candidate objective is defined conditional on the supplied data and graph: DAGGuard only decides which candidate edges to retain and never adds an omitted edge or reverses an upstream orientation. In the accompanying paper, all end-to-end experiments and the commercial application use NOTEARS-generated candidates; finite-sample performance after other upstream DAG learners has not been established here.
 
-The accompanying manuscript is **“DAGGuard: Certified BIC Refinement of Candidate DAGs with an Application to Commercial Swine Production.”**
+The accompanying manuscript is **“DAGGuard: Exact and Greedy BIC Refinement of Learned DAGs with an Application to Commercial Swine Production.”**
 
 ## Why DAGGuard?
 
@@ -23,7 +23,7 @@ BIC_j(S) = n log(RSS_j(S)/n) + (|S| + 1) log(n)
 and the deletion-subgraph problem separates exactly by child. DAGGuard therefore provides two complementary algorithms:
 
 - **DAGGuard-Greedy**: fast repeated best single-edge deletion.
-- **DAGGuard-Exact**: certified child-wise best-subset selection using enumeration and branch-and-bound.
+- **DAGGuard-Exact**: exact child-wise best-subset selection using enumeration and branch-and-bound, with an explicit numerical optimality flag.
 
 The one-edge BIC rule has the exact partial-R-squared interpretation
 
@@ -33,7 +33,7 @@ delete edge iff partial R^2 < 1 - n^(-1/n).
 
 DAGGuard is a score-based refinement procedure, not a finite-sample nominal FDR method. Its formal guarantees are conditional on a fixed or independently learned candidate. The current end-to-end empirical validation is specifically for NOTEARS-generated candidates.
 
-For conventional Gaussian BIC, the public API requires each child's centered full candidate-parent design to have full column rank; rank-deficient candidate designs are rejected. `globally_optimal=True` certifies objective-value optimality within the documented score tolerance and never labels a resource-limited branch-and-bound result as exact.
+For conventional Gaussian BIC, the public API requires each child's centered full candidate-parent design to have full column rank; rank-deficient candidate designs are rejected. `globally_optimal=True` means the exact search established the minimum score within the documented numerical tolerance and did not hit its search limit; it does not imply a unique representative when multiple subsets are numerically tied.
 
 ## Installation
 
@@ -77,6 +77,10 @@ Across 240 common Gaussian, centered-exponential, and centered-Gumbel simulation
 
 Primary summary: `results/seven_method_benchmark/simulation_primary_seven_methods.csv`.
 
+### NOTEARS tuning sensitivity
+
+The referee-revision workflow includes a grid over NOTEARS L1 penalties and post-estimation thresholds. Across the evaluated tuning cells, DAGGuard-Exact reduced mean FDR and SHD while changing TPR only modestly, showing that the improvement is not tied to a single unusually dense NOTEARS tuning choice.
+
 ### Commercial swine application
 
 The authorized analysis uses 2,556 complete lots and 37 variables. The pinned NOTEARS candidate has 185 edges; DAGGuard-Exact retains 87 and DAGGuard-Greedy 89. PRRS is adjacent to 60-day nursery mortality in all seven benchmark methods, while MYCO and third-quarter placement are supported by six. Four outgoing NOTEARS mortality relationships are removed by both DAGGuard variants and are absent from all four comparator graphs.
@@ -90,12 +94,13 @@ The proprietary row-level data are not distributed. The real-data workflow recor
 - `candidate_contamination_simulations.py` - 12-setting fixed-candidate experiment.
 - `reproduce_simulations.py` - primary NOTEARS simulation workflow.
 - `additional_noise_sensitivity.py` - Gaussian/exponential/Gumbel sensitivity analysis.
+- `notears_tuning_sensitivity.py` - NOTEARS penalty/threshold sensitivity analysis.
 - `realdata_postselection_diagnostics.py` - authorized swine-data analysis.
+- `synthetic_application_twin.py` - public 37-variable workflow without proprietary observations.
+- `reproduce_submission.sh` - staged reproduction entrypoint.
 - `benchmarks/seven_method/` - audited competitor implementations and real-data benchmark runner.
 - `results/seven_method_benchmark/` - audited benchmark summary tables (no proprietary observations).
-- `synthetic_application_twin.py` - public 37-variable end-to-end workflow without proprietary data.
-- `reproduce_submission.sh` - staged one-command reproduction entrypoint.
-- `tests/` - deterministic unit tests.
+- `tests/` - deterministic unit and numerical-policy tests.
 - `REAL_DATA_SCHEMA.md` - construction of the 37 application variables.
 
 ## Reproduce the main DAGGuard analyses
@@ -145,4 +150,4 @@ This repository was renamed from `NOTEARS-BP` to `DAGGuard` on August 24, 2026. 
 
 ## Citation
 
-Wang M, Liu P, Magalhaes ES, Wang C. *DAGGuard: Certified BIC Refinement of Candidate DAGs with an Application to Commercial Swine Production.* Journal of Data Science, submitted.
+Wang M, Liu P, Magalhaes ES, Wang C. *DAGGuard: Exact and Greedy BIC Refinement of Learned DAGs with an Application to Commercial Swine Production.* Journal of Data Science, submitted.

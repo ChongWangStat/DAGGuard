@@ -16,6 +16,9 @@ if [[ "${DAGGUARD_FULL:-0}" == "1" ]]; then
   python additional_noise_sensitivity.py \
     --simulation-replicates 20 \
     --out results/additional_noise_sensitivity
+  python notears_tuning_sensitivity.py \
+    --workers 4 \
+    --out results/notears_tuning_sensitivity
 fi
 
 printf '\nDAGGuard reproduction stage completed successfully.\n'

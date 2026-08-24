@@ -58,7 +58,7 @@ print(exact.total_bic)
 Run the minimal example:
 
 ```bash
-python examples/dagguard_quickstart.py
+python -m examples.dagguard_quickstart
 ```
 
 `local_bic_refinement.py` remains the tested numerical engine for backward compatibility with the earlier reproducibility commit.
@@ -125,7 +125,7 @@ See `benchmarks/seven_method/README.md` and `results/seven_method_benchmark/meth
 
 ```bash
 python -m unittest discover -s tests -v
-python examples/dagguard_quickstart.py
+python -m examples.dagguard_quickstart
 ```
 
 ## Data availability

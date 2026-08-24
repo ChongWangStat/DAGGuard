@@ -1,10 +1,10 @@
 # DAGGuard
 
-**False-discovery-aware refinement of learned directed acyclic graphs**
+**Certified BIC refinement of candidate directed acyclic graphs**
 
 DAGGuard is a post-learning refinement method for an already oriented candidate DAG. Its fixed-candidate objective is defined conditional on the supplied data and graph: DAGGuard only decides which candidate edges to retain and never adds an omitted edge or reverses an upstream orientation. In the accompanying paper, all end-to-end experiments and the commercial application use NOTEARS-generated candidates; finite-sample performance after other upstream DAG learners has not been established here.
 
-The accompanying manuscript is **“DAGGuard: False-Discovery-Aware Refinement of Learned DAGs with an Application to Commercial Swine Production.”**
+The accompanying manuscript is **“DAGGuard: Certified BIC Refinement of Candidate DAGs with an Application to Commercial Swine Production.”**
 
 ## Why DAGGuard?
 
@@ -31,7 +31,9 @@ The one-edge BIC rule has the exact partial-R-squared interpretation
 delete edge iff partial R^2 < 1 - n^(-1/n).
 ```
 
-DAGGuard is **false-discovery-aware**, not a finite-sample nominal FDR procedure. Its formal guarantees are conditional on a fixed or independently learned candidate. The current end-to-end empirical validation is specifically for NOTEARS-generated candidates.
+DAGGuard is a score-based refinement procedure, not a finite-sample nominal FDR method. Its formal guarantees are conditional on a fixed or independently learned candidate. The current end-to-end empirical validation is specifically for NOTEARS-generated candidates.
+
+For conventional Gaussian BIC, the public API requires each child's centered full candidate-parent design to have full column rank; rank-deficient candidate designs are rejected. `globally_optimal=True` certifies objective-value optimality within the documented score tolerance and never labels a resource-limited branch-and-bound result as exact.
 
 ## Installation
 
@@ -71,7 +73,7 @@ Across 1,200 controlled candidate-contamination experiments, DAGGuard removed ne
 
 ### Seven-method end-to-end benchmark
 
-Across 240 common Gaussian, centered-exponential, and centered-Gumbel simulation datasets using NOTEARS candidates for the DAGGuard rows, the pooled skeleton false-discovery proportion decreased from 0.148 for NOTEARS to 0.066 for DAGGuard-Exact while pooled TPR changed only from 0.860 to 0.856. The repository includes transparent comparator code and provenance for Wang et al. (2026), Li & Wang PC-FDR, PC-p, and ordinary PC.
+Across 240 common Gaussian, centered-exponential, and centered-Gumbel simulation datasets using NOTEARS candidates for the DAGGuard rows, the pooled skeleton false-discovery proportion decreased from 0.148 for NOTEARS to 0.066 for DAGGuard-Exact while pooled TPR changed only from 0.860 to 0.856. Benefits were concentrated in regimes where NOTEARS over-selected. The repository includes transparent comparator code and provenance for Wang et al. (2026), Li & Wang PC-FDR, PC-p, and ordinary PC.
 
 Primary summary: `results/seven_method_benchmark/simulation_primary_seven_methods.csv`.
 
@@ -91,19 +93,23 @@ The proprietary row-level data are not distributed. The real-data workflow recor
 - `realdata_postselection_diagnostics.py` - authorized swine-data analysis.
 - `benchmarks/seven_method/` - audited competitor implementations and real-data benchmark runner.
 - `results/seven_method_benchmark/` - audited benchmark summary tables (no proprietary observations).
+- `synthetic_application_twin.py` - public 37-variable end-to-end workflow without proprietary data.
+- `reproduce_submission.sh` - staged one-command reproduction entrypoint.
 - `tests/` - deterministic unit tests.
 - `REAL_DATA_SCHEMA.md` - construction of the 37 application variables.
 
 ## Reproduce the main DAGGuard analyses
 
-```bash
-python candidate_contamination_simulations.py \
-  --replicates 100 --d 20 --n 500 \
-  --out results/candidate_contamination
+Fast checks and synthetic application twin:
 
-python additional_noise_sensitivity.py \
-  --simulation-replicates 20 \
-  --out results/additional_noise_sensitivity
+```bash
+bash reproduce_submission.sh
+```
+
+Full public simulation suite:
+
+```bash
+DAGGUARD_FULL=1 bash reproduce_submission.sh
 ```
 
 Authorized real-data analysis:
@@ -126,6 +132,7 @@ See `benchmarks/seven_method/README.md` and `results/seven_method_benchmark/meth
 ```bash
 python -m unittest discover -s tests -v
 python -m examples.dagguard_quickstart
+python synthetic_application_twin.py --out results/synthetic_application_twin
 ```
 
 ## Data availability
@@ -138,4 +145,4 @@ This repository was renamed from `NOTEARS-BP` to `DAGGuard` on August 24, 2026. 
 
 ## Citation
 
-Wang M, Liu P, Magalhaes ES, Wang C. *DAGGuard: False-Discovery-Aware Refinement of Learned DAGs with an Application to Commercial Swine Production.* Journal of Data Science, submitted.
+Wang M, Liu P, Magalhaes ES, Wang C. *DAGGuard: Certified BIC Refinement of Candidate DAGs with an Application to Commercial Swine Production.* Journal of Data Science, submitted.

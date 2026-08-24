@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from dagguard import refine_dag
+from dagguard import pruning_pressure, refine_dag
 
 
 class DagGuardApiTests(unittest.TestCase):
@@ -60,7 +60,6 @@ class DagGuardApiTests(unittest.TestCase):
         n = 350
         x0 = rng.normal(size=n)
         x1 = rng.normal(size=n)
-        # Symmetric weak signals produce nearly competitive one-parent models.
         y = 0.12 * x0 + 0.12 * x1 + rng.normal(size=n)
         X = np.column_stack([x0, x1, y])
         candidate = np.zeros((3, 3), dtype=int)
@@ -71,6 +70,56 @@ class DagGuardApiTests(unittest.TestCase):
         self.assertTrue(first.globally_optimal)
         np.testing.assert_array_equal(first.adjacency, second.adjacency)
         self.assertAlmostEqual(first.total_bic, second.total_bic, places=10)
+
+    def test_public_exact_is_scale_invariant(self):
+        X, candidate = self._scale_test_problem()
+        scaled = X * np.array([1e-8, 1e7, 1e3, 1e-4])
+        base = refine_dag(X, candidate, method="exact")
+        changed = refine_dag(scaled, candidate, method="exact")
+        np.testing.assert_array_equal(base.adjacency, changed.adjacency)
+        self.assertTrue(base.globally_optimal)
+        self.assertTrue(changed.globally_optimal)
+
+    def test_public_greedy_is_scale_invariant(self):
+        X, candidate = self._scale_test_problem()
+        scaled = X * np.array([1e-8, 1e7, 1e3, 1e-4])
+        base = refine_dag(X, candidate, method="greedy")
+        changed = refine_dag(scaled, candidate, method="greedy")
+        np.testing.assert_array_equal(base.adjacency, changed.adjacency)
+
+    def test_public_pruning_pressure_is_scale_invariant(self):
+        X, candidate = self._scale_test_problem()
+        scaled = X * np.array([1e-8, 1e7, 1e3, 1e-4])
+        base_summary, base_rows = pruning_pressure(X, candidate)
+        changed_summary, changed_rows = pruning_pressure(scaled, candidate)
+        self.assertEqual(base_summary["edges_below_cutoff"], changed_summary["edges_below_cutoff"])
+        self.assertAlmostEqual(
+            base_summary["initial_pruning_pressure"],
+            changed_summary["initial_pruning_pressure"],
+            places=12,
+        )
+        self.assertEqual(
+            [(r["parent"], r["child"], r["below_cutoff"]) for r in base_rows],
+            [(r["parent"], r["child"], r["below_cutoff"]) for r in changed_rows],
+        )
+
+    @staticmethod
+    def _scale_test_problem():
+        rng = np.random.default_rng(29)
+        n = 400
+        x0 = rng.normal(size=n)
+        x1 = 0.8 * x0 + rng.normal(size=n)
+        x2 = -0.6 * x0 + 0.7 * x1 + rng.normal(size=n)
+        x3 = 0.9 * x2 + 0.08 * x0 + rng.normal(size=n)
+        X = np.column_stack([x0, x1, x2, x3])
+        candidate = np.zeros((4, 4), dtype=int)
+        candidate[0, 1] = 1
+        candidate[0, 2] = 1
+        candidate[1, 2] = 1
+        candidate[0, 3] = 1
+        candidate[1, 3] = 1
+        candidate[2, 3] = 1
+        return X, candidate
 
 
 if __name__ == "__main__":

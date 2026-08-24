@@ -33,7 +33,7 @@ delete edge iff partial R^2 < 1 - n^(-1/n).
 
 DAGGuard is a score-based refinement procedure, not a finite-sample nominal FDR method. Its formal guarantees are conditional on a fixed or independently learned candidate. The current end-to-end empirical validation is specifically for NOTEARS-generated candidates.
 
-For conventional Gaussian BIC, the public API requires each child's centered full candidate-parent design to have full column rank; rank-deficient candidate designs are rejected. `globally_optimal=True` means the exact search established the minimum score within the documented numerical tolerance and did not hit its search limit; it does not imply a unique representative when multiple subsets are numerically tied.
+For conventional Gaussian BIC, the public API requires each child's centered full candidate-parent design to have full column rank; rank-deficient candidate designs are rejected. Before numerical rank assessment, nonconstant candidate-parent columns are normalized by their Euclidean norms, so the validation is stable to changes of measurement units. `globally_optimal=True` means the exact search established the minimum score within the documented numerical tolerance and did not hit its search limit; it does not imply a unique representative when multiple subsets are numerically tied.
 
 ## Installation
 
@@ -79,13 +79,13 @@ Primary summary: `results/seven_method_benchmark/simulation_primary_seven_method
 
 ### NOTEARS tuning sensitivity
 
-The referee-revision workflow includes a grid over NOTEARS L1 penalties and post-estimation thresholds. Across the evaluated tuning cells, DAGGuard-Exact reduced mean FDR and SHD while changing TPR only modestly, showing that the improvement is not tied to a single unusually dense NOTEARS tuning choice.
+A 3-by-3 grid varied the NOTEARS L1 penalty and post-estimation threshold. Across all evaluated dimension-by-tuning cells, DAGGuard-Exact reduced mean FDR and SHD with comparatively small TPR changes. The `d=10` cells use 120 datasets each; the targeted `d=20` strong-signal cells use 15 datasets each and are treated as exploratory. Results are in `results/notears_tuning_sensitivity/`.
 
 ### Commercial swine application
 
 The authorized analysis uses 2,556 complete lots and 37 variables. The pinned NOTEARS candidate has 185 edges; DAGGuard-Exact retains 87 and DAGGuard-Greedy 89. PRRS is adjacent to 60-day nursery mortality in all seven benchmark methods, while MYCO and third-quarter placement are supported by six. Four outgoing NOTEARS mortality relationships are removed by both DAGGuard variants and are absent from all four comparator graphs.
 
-The proprietary row-level data are not distributed. The real-data workflow records a SHA256 hash and exports only non-row-level summaries.
+The proprietary row-level data are not distributed. The real-data workflow records a SHA256 hash and exports only non-row-level summaries. Because several production variables are extremely collinear, the application emphasizes recurring relations and variable groups rather than interpreting every individual selected parent as a uniquely identified mechanism. The audit is in `results/swine_application/realdata_collinearity_audit.csv`.
 
 ## Repository map
 
@@ -139,6 +139,8 @@ python -m unittest discover -s tests -v
 python -m examples.dagguard_quickstart
 python synthetic_application_twin.py --out results/synthetic_application_twin
 ```
+
+The public API tests include scale-invariance checks for exact refinement, greedy refinement, and pruning pressure, together with duplicate-column, near-collinearity, and near-tie cases.
 
 ## Data availability
 

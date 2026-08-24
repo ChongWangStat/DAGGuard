@@ -1,20 +1,23 @@
 """Public DAGGuard API.
 
 DAGGuard refines an already learned directed acyclic graph (DAG) by deleting
-candidate edges using decomposable Gaussian BIC.  Two complementary algorithms
+candidate edges using decomposable Gaussian BIC. Two complementary algorithms
 are exposed:
 
 - ``method='greedy'``: repeated best single-parent deletion;
 - ``method='exact'``: certified child-wise best-subset search using enumeration
   and branch-and-bound.
 
-The numerical engine remains in ``local_bic_refinement.py`` for backward
-compatibility with the original NOTEARS-BP reproducibility commit.  New code
-should import from this module.
+The public API enforces the regular full-column-rank condition used by the
+Gaussian-BIC theory. The numerical engine remains in ``local_bic_refinement.py``
+for backward compatibility with the original NOTEARS-BP reproducibility
+commit. New code should import from this module.
 """
 from __future__ import annotations
 
 from typing import Literal
+
+import numpy as np
 
 from local_bic_refinement import (
     RefinementResult,
@@ -50,6 +53,52 @@ __all__ = [
 ]
 
 
+def _validate_candidate_full_rank(X, candidate_adjacency, rank_tolerance=None):
+    """Validate the regular full-rank condition for every candidate regression.
+
+    The conventional local BIC used by DAGGuard penalizes the nominal number of
+    selected parents. To keep that score aligned with regular Gaussian BIC, the
+    public API requires each child's *full candidate-parent design* to have full
+    column rank after centering. Every deletion subset is then also full rank.
+    Rank-deficient candidates should first remove redundant predictors or use a
+    score explicitly designed for singular models.
+
+    When ``rank_tolerance`` is supplied, it is interpreted as a relative
+    singular-value cutoff, matching NumPy least-squares ``rcond`` semantics.
+    """
+    X = np.asarray(X, dtype=float)
+    A = (np.asarray(candidate_adjacency) != 0).astype(np.int8)
+    if X.ndim != 2:
+        raise ValueError("X must be a two-dimensional numeric array")
+    if A.ndim != 2 or A.shape[0] != A.shape[1] or A.shape[0] != X.shape[1]:
+        raise ValueError("candidate_adjacency must be square and match X")
+    if not np.all(np.isfinite(X)):
+        raise ValueError("X contains non-finite values")
+    Xc = X - X.mean(axis=0, keepdims=True)
+    for child in range(A.shape[0]):
+        parents = np.flatnonzero(A[:, child])
+        q = int(len(parents))
+        if q == 0:
+            continue
+        design = Xc[:, parents]
+        singular = np.linalg.svd(design, compute_uv=False)
+        if singular.size == 0:
+            rank = 0
+        elif rank_tolerance is None:
+            cutoff = max(design.shape) * np.finfo(float).eps * singular[0]
+            rank = int(np.sum(singular > cutoff))
+        else:
+            if rank_tolerance < 0:
+                raise ValueError("rank_tolerance must be nonnegative")
+            rank = int(np.sum(singular > float(rank_tolerance) * singular[0]))
+        if rank < q:
+            raise ValueError(
+                "candidate parent design is rank deficient for child "
+                f"{child}: rank {rank} < {q} candidate parents; remove "
+                "redundant predictors before Gaussian-BIC refinement"
+            )
+
+
 def refine_dag(
     X,
     candidate_adjacency,
@@ -67,15 +116,21 @@ def refine_dag(
     X : array-like, shape (n_samples, n_variables)
         Numeric analysis matrix.
     candidate_adjacency : array-like, shape (d, d)
-        Directed candidate adjacency with ``A[parent, child] = 1``.  The graph
+        Directed candidate adjacency with ``A[parent, child] = 1``. The graph
         must be acyclic. DAGGuard only deletes edges; it never adds or reverses
-        an edge.
+        an edge. For conventional Gaussian BIC, each child's centered candidate
+        parent design must have full column rank.
     method : {"exact", "greedy"}
         Exact certified best-subset refinement or fast greedy deletion.
     enumeration_max_parents, branch_node_limit : int
         Exact-search controls. They are ignored by the greedy method.
-    score_tolerance, rank_tolerance : float or None
-        Numerical controls passed to the underlying scoring/search engine.
+    score_tolerance : float
+        Numerical tolerance for score comparisons. ``globally_optimal=True``
+        certifies score optimality to this tolerance; it does not assert a
+        unique representative when distinct subsets are numerically tied.
+    rank_tolerance : float or None
+        Relative singular-value cutoff used by the public rank check and passed
+        as ``rcond`` to the least-squares engine.
 
     Returns
     -------
@@ -83,6 +138,7 @@ def refine_dag(
         Selected adjacency, score, runtime, search diagnostics, and exactness
         certificate where applicable.
     """
+    _validate_candidate_full_rank(X, candidate_adjacency, rank_tolerance)
     method = str(method).lower()
     if method == "exact":
         return exact_refine_dag(
@@ -105,6 +161,7 @@ def refine_dag(
 
 def pruning_pressure(X, candidate_adjacency, *, rank_tolerance: float | None = None):
     """Return DAGGuard's one-pass initial pruning-pressure diagnostic."""
+    _validate_candidate_full_rank(X, candidate_adjacency, rank_tolerance)
     return initial_pruning_pressure(
         X, candidate_adjacency, rank_tolerance=rank_tolerance
     )

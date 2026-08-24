@@ -2,16 +2,16 @@
 
 **False-discovery-aware refinement of learned directed acyclic graphs**
 
-DAGGuard is a learner-agnostic post-learning reliability layer for an already oriented candidate DAG. It keeps the upstream graph fixed and asks which proposed edges have enough conditional support to remain. DAGGuard never adds an omitted edge or reverses an upstream orientation.
+DAGGuard is a post-learning refinement method for an already oriented candidate DAG. Its fixed-candidate objective is defined conditional on the supplied data and graph: DAGGuard only decides which candidate edges to retain and never adds an omitted edge or reverses an upstream orientation. In the accompanying paper, all end-to-end experiments and the commercial application use NOTEARS-generated candidates; finite-sample performance after other upstream DAG learners has not been established here.
 
 The accompanying manuscript is **“DAGGuard: False-Discovery-Aware Refinement of Learned DAGs with an Application to Commercial Swine Production.”**
 
 ## Why DAGGuard?
 
-Modern DAG learners can return overconnected graphs with many false-positive or weakly supported edges. DAGGuard separates candidate generation from post-learning assessment:
+A learned DAG can be overconnected or contain weakly supported edges. DAGGuard separates candidate generation from post-learning assessment:
 
 ```text
-black-box DAG learner -> fixed candidate DAG -> DAGGuard -> refined DAG
+DAG learning (NOTEARS in this study) -> fixed candidate DAG -> DAGGuard -> refined DAG
 ```
 
 For Gaussian local BIC,
@@ -31,7 +31,7 @@ The one-edge BIC rule has the exact partial-R-squared interpretation
 delete edge iff partial R^2 < 1 - n^(-1/n).
 ```
 
-DAGGuard is **false-discovery-aware**, not a finite-sample nominal FDR procedure. Its formal guarantees are conditional on a fixed or independently learned candidate.
+DAGGuard is **false-discovery-aware**, not a finite-sample nominal FDR procedure. Its formal guarantees are conditional on a fixed or independently learned candidate. The current end-to-end empirical validation is specifically for NOTEARS-generated candidates.
 
 ## Installation
 
@@ -71,7 +71,7 @@ Across 1,200 controlled candidate-contamination experiments, DAGGuard removed ne
 
 ### Seven-method end-to-end benchmark
 
-Across 240 common Gaussian, centered-exponential, and centered-Gumbel simulation datasets, the pooled skeleton false-discovery proportion decreased from 0.148 for NOTEARS to 0.066 for DAGGuard-Exact while pooled TPR changed only from 0.860 to 0.856. The repository includes transparent comparator code and provenance for Wang et al. (2026), Li & Wang PC-FDR, PC-p, and ordinary PC.
+Across 240 common Gaussian, centered-exponential, and centered-Gumbel simulation datasets using NOTEARS candidates for the DAGGuard rows, the pooled skeleton false-discovery proportion decreased from 0.148 for NOTEARS to 0.066 for DAGGuard-Exact while pooled TPR changed only from 0.860 to 0.856. The repository includes transparent comparator code and provenance for Wang et al. (2026), Li & Wang PC-FDR, PC-p, and ordinary PC.
 
 Primary summary: `results/seven_method_benchmark/simulation_primary_seven_methods.csv`.
 
@@ -134,7 +134,7 @@ The commercial swine observations are proprietary and are not included. Requests
 
 ## Historical reproducibility
 
-The application results used in the manuscript are tied to historical commit `509cb29c24967d12b99e2b53641349ce7bb470ed`. The method has since been renamed DAGGuard; preserving the old commit keeps the analysis audit trail intact.
+This repository was renamed from `NOTEARS-BP` to `DAGGuard` on August 24, 2026. The application results used in the manuscript remain tied to historical commit `509cb29c24967d12b99e2b53641349ce7bb470ed`; preserving that commit keeps the analysis audit trail intact. GitHub redirects the earlier repository URL to the current DAGGuard repository.
 
 ## Citation
 

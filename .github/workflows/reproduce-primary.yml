@@ -68,6 +68,8 @@ jobs:
             benchmarks/seven_method/pcp_faithful.py \
             benchmarks/seven_method/wang_full.py \
             benchmarks/seven_method/wang_sensitivity.py \
+            benchmarks/seven_method/wang_fixed_candidate.py \
+            benchmarks/seven_method/reproduce_external_simulations.py \
             benchmarks/seven_method/swine_benchmark.py \
             reproduce_simulations.py \
             additional_noise_sensitivity.py \
@@ -75,7 +77,7 @@ jobs:
             synthetic_application_twin.py \
             realdata_postselection_diagnostics.py \
             candidate_contamination_simulations.py
-          python -c "import dagguard; import benchmarks.seven_method.pcp_faithful; import benchmarks.seven_method.wang_sensitivity"
+          python -c "import dagguard; import benchmarks.seven_method.pcp_faithful; import benchmarks.seven_method.wang_sensitivity; import benchmarks.seven_method.wang_fixed_candidate; import benchmarks.seven_method.reproduce_external_simulations"
       - name: Run deterministic unit tests
         run: python -m unittest discover -s tests -v
       - name: Run DAGGuard quickstart
@@ -96,3 +98,18 @@ jobs:
           python candidate_contamination_simulations.py \
             --replicates 1 --out results/contamination_smoke_test
           test -s results/contamination_smoke_test/exact_greedy_paired_summary.csv
+      - name: Verify Wang fixed-candidate manuscript table
+        run: |
+          python -m benchmarks.seven_method.wang_fixed_candidate \
+            --replicates 100 --check-manuscript \
+            --out results/wang_fixed_candidate_audit
+          test -s results/wang_fixed_candidate_audit/wang_fixed_candidate_replicates.csv
+          test -s results/wang_fixed_candidate_audit/wang_fixed_candidate_summary.csv
+      - name: Verify external seven-method comparator tables
+        run: |
+          python -m benchmarks.seven_method.reproduce_external_simulations \
+            --replicates 20 --check-manuscript \
+            --out results/external_comparator_audit
+          test -s results/external_comparator_audit/external_comparator_replicates.csv
+          test -s results/external_comparator_audit/external_comparator_summary.csv
+          test -s results/external_comparator_audit/wang_threshold_summary.csv

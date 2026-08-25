@@ -99,7 +99,7 @@ jobs:
           test -s results/contamination_smoke_test/exact_greedy_paired_summary.csv
       - name: Verify Wang fixed-candidate manuscript table
         run: |
-          python benchmarks/seven_method/wang_fixed_candidate.py \
+          python -m benchmarks.seven_method.wang_fixed_candidate \
             --replicates 100 --check-manuscript \
             --out results/wang_fixed_candidate_audit
           test -s results/wang_fixed_candidate_audit/wang_fixed_candidate_replicates.csv

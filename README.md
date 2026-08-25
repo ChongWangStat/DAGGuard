@@ -33,11 +33,11 @@ delete edge iff partial R^2 < 1 - n^(-1/n).
 
 DAGGuard is a score-based refinement procedure, not a finite-sample nominal FDR method. Its formal guarantees are conditional on a fixed or independently learned candidate. The current end-to-end empirical validation is specifically for NOTEARS-generated candidates.
 
-For conventional Gaussian BIC, the public API requires each child's centered full candidate-parent design to have full column rank; rank-deficient candidate designs are rejected. Before numerical rank assessment, nonconstant candidate-parent columns are normalized by their Euclidean norms, so the validation is stable to changes of measurement units. `globally_optimal=True` means the exact search established the minimum score within the documented numerical tolerance and did not hit its search limit; it does not imply a unique representative when multiple subsets are numerically tied.
+For conventional Gaussian BIC, every public refinement entry point requires each child's centered full candidate-parent design to have full column rank, `q_j < n - 1`, and strictly positive, numerically nondegenerate full-model residual variance. Rank-deficient, saturated, constant-response, and degenerate candidate regressions are rejected with informative exceptions. Before numerical rank assessment, nonconstant candidate-parent columns are normalized by their Euclidean norms, so validation is stable to changes of measurement units. `globally_optimal=True` means the exact search established the minimum score within the documented numerical tolerance and did not hit its search limit; it does not imply a unique representative when multiple subsets are numerically tied.
 
 ## Installation
 
-Python 3.12 was used for the reported analyses.
+Python 3.12 was used for the reported analyses. Core package versions are pinned in `requirements.txt`.
 
 ```bash
 python -m pip install -r requirements.txt
@@ -57,13 +57,13 @@ print(exact.globally_optimal)
 print(exact.total_bic)
 ```
 
+The lower-level names `exact_refine_dag` and `greedy_refine_dag` exported by `dagguard.py` use the same validation policy. `local_bic_refinement.py` remains the tested numerical engine for backward compatibility with the earlier reproducibility commit.
+
 Run the minimal example:
 
 ```bash
 python -m examples.dagguard_quickstart
 ```
-
-`local_bic_refinement.py` remains the tested numerical engine for backward compatibility with the earlier reproducibility commit.
 
 ## Main empirical results
 
@@ -89,7 +89,7 @@ The proprietary row-level data are not distributed. The real-data workflow recor
 
 ## Repository map
 
-- `dagguard.py` - public DAGGuard API.
+- `dagguard.py` - validated public DAGGuard API.
 - `local_bic_refinement.py` - backward-compatible numerical engine: local BIC, exact search, greedy search, pruning pressure, and graph metrics.
 - `candidate_contamination_simulations.py` - 12-setting fixed-candidate experiment.
 - `reproduce_simulations.py` - primary NOTEARS simulation workflow.
@@ -97,10 +97,11 @@ The proprietary row-level data are not distributed. The real-data workflow recor
 - `notears_tuning_sensitivity.py` - NOTEARS penalty/threshold sensitivity analysis.
 - `realdata_postselection_diagnostics.py` - authorized swine-data analysis.
 - `synthetic_application_twin.py` - public 37-variable workflow without proprietary observations.
-- `reproduce_submission.sh` - staged reproduction entrypoint.
+- `reproduce_submission.sh` - staged reproduction entry point.
 - `benchmarks/seven_method/` - audited competitor implementations and real-data benchmark runner.
+- `benchmarks/seven_method/SOURCE_AUDIT.md` - source-by-source comparator audit and documented adaptation choices.
 - `results/seven_method_benchmark/` - audited benchmark summary tables (no proprietary observations).
-- `tests/` - deterministic unit and numerical-policy tests.
+- `tests/` - deterministic numerical, public-API, and benchmark source-audit tests.
 - `REAL_DATA_SCHEMA.md` - construction of the 37 application variables.
 
 ## Reproduce the main DAGGuard analyses
@@ -128,9 +129,9 @@ python realdata_postselection_diagnostics.py \
 
 ## Seven-method benchmark provenance
 
-The benchmark distinguishes the methods' inferential targets. PC-family procedures are compared by skeleton adjacency because they need not return a uniquely oriented DAG. The Wang et al. (2026) structural method is transparently adapted to continuous variables by empirical tertiles and is not represented as official author software. PC-p is a source-audited Python port of the authors' official MATLAB code because MATLAB/Octave was unavailable in the benchmark runtime.
+The benchmark distinguishes the methods' inferential targets and implementation status. NOTEARS was checked against the public `xunzheng/notears` linear implementation. Li & Wang PC-FDR is an independent implementation of the published Algorithm 3. PC-p is a source-audited Python port of the authors' official MATLAB code because MATLAB/Octave was unavailable in the benchmark runtime. The Wang et al. (2026) structural method is a published-parameter adaptation to continuous variables by empirical tertiles and is not represented as official author software. PC-family procedures and the Wang adaptation are compared by skeleton adjacency because they need not return a uniquely oriented DAG comparable to NOTEARS/DAGGuard.
 
-See `benchmarks/seven_method/README.md` and `results/seven_method_benchmark/method_implementation_provenance.csv`.
+See `benchmarks/seven_method/SOURCE_AUDIT.md`, `benchmarks/seven_method/README.md`, `results/seven_method_benchmark/method_implementation_provenance.csv`, and `results/seven_method_benchmark/AUDIT_NOTES.md`.
 
 ## Tests
 
@@ -140,7 +141,7 @@ python -m examples.dagguard_quickstart
 python synthetic_application_twin.py --out results/synthetic_application_twin
 ```
 
-The public API tests include scale-invariance checks for exact refinement, greedy refinement, and pruning pressure, together with duplicate-column, near-collinearity, and near-tie cases.
+The public API tests cover scale invariance for exact refinement, greedy refinement, and pruning pressure; duplicate columns; near-collinearity; near ties; saturated local models; constant responses; and exact or numerically near-exact fits. Additional regression tests check the Gaussian Fisher-z formula, PC-FDR step-up rule, PC-p BY estimator, and the discrete-BIC parameter count used in the Wang adaptation.
 
 ## Data availability
 

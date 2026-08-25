@@ -24,6 +24,12 @@ No official public implementation was located. The benchmark therefore labels th
 
 The source application is discrete and includes domain-specific root-node restrictions. For the generic continuous simulation benchmark, variables are discretized by empirical tertiles and no source-application root labels are transferred. The paper does not fully formalize the phrase describing exclusion of collider-related nodes in the Step-3 conditioning set, so the implementation uses a conservative documented interpretation. Step 4 is not benchmarked because it only orients the retained skeleton and the common endpoint is skeleton adjacency; its state-wise orientation rule is also not sufficiently specified for a generic continuous-variable adaptation. These choices are limitations of comparability, not claimed features of the authors' original implementation.
 
+### Fixed-candidate Wang-style local-BIC comparison
+
+The manuscript's separate fixed-candidate comparison is not the end-to-end hybrid adaptation above. `wang_fixed_candidate.py` isolates the local-BIC backward-parent deletion logic in Wang et al. Algorithm 2 and applies it to the same oriented continuous-data candidates used in the 1,200 controlled DAGGuard experiments. Algorithm 2 evaluates each current parent against the same current-parent baseline, collects all individually improving deletions in a `ToRemove` set, removes that set, and repeats. The audit therefore implements batched deletion rather than DAGGuard-Greedy's single-best deletion. The published Wang score is higher-is-better; for the continuous simulations, the identical deletion logic is expressed using the Gaussian local BIC used by DAGGuard, where lower is better.
+
+The GitHub Actions reproducibility check regenerates all 12 settings x 100 replicates from the pinned deterministic seeds and verifies every rounded value reported in Supplementary Table S3, including the 68% versus 96% exact-agreement contrast and the 2.956 versus 0.145 mean BIC-gap contrast under combined contamination. This closes the reproduction path for the closest local-BIC precedent without representing the continuous-data score substitution as official Wang et al. software.
+
 ## Ordinary PC
 
 The ordinary-PC baseline uses an original-style ordered-pair skeleton search with immediate graph updates and two-sided Gaussian Fisher-z tests at `alpha=0.05`. It is presented as a conventional PC skeleton baseline, not as a reproduction of a particular software package.

@@ -25,10 +25,10 @@ from local_bic_refinement import (
     candidate_indegree_summary,
     deletion_diagnostics,
     edge_jaccard,
-    exact_refine_dag,
+    exact_refine_dag as _exact_refine_dag_engine,
     gaussian_local_bic,
     graph_metrics,
-    greedy_refine_dag,
+    greedy_refine_dag as _greedy_refine_dag_engine,
     initial_pruning_pressure,
     is_acyclic,
     total_gaussian_bic,
@@ -134,9 +134,7 @@ def _validate_candidate_full_rank(X, candidate_adjacency, rank_tolerance=None):
                     "redundant predictors before Gaussian-BIC refinement"
                 )
 
-            coef, *_ = np.linalg.lstsq(
-                stable_design, y, rcond=rank_tolerance
-            )
+            coef, *_ = np.linalg.lstsq(stable_design, y, rcond=rank_tolerance)
             residual = y - stable_design @ coef
             full_rss = float(residual @ residual)
 
@@ -147,6 +145,44 @@ def _validate_candidate_full_rank(X, candidate_adjacency, rank_tolerance=None):
                 "conventional Gaussian BIC requires strictly positive residual "
                 "variance"
             )
+
+
+def exact_refine_dag(
+    X,
+    candidate_adjacency,
+    *,
+    enumeration_max_parents: int = 15,
+    branch_node_limit: int = 2_000_000,
+    score_tolerance: float = 1e-10,
+    rank_tolerance: float | None = None,
+) -> RefinementResult:
+    """Validated public wrapper for exact fixed-candidate refinement."""
+    _validate_candidate_full_rank(X, candidate_adjacency, rank_tolerance)
+    return _exact_refine_dag_engine(
+        X,
+        candidate_adjacency,
+        enumeration_max_parents=enumeration_max_parents,
+        branch_node_limit=branch_node_limit,
+        score_tolerance=score_tolerance,
+        rank_tolerance=rank_tolerance,
+    )
+
+
+def greedy_refine_dag(
+    X,
+    candidate_adjacency,
+    *,
+    score_tolerance: float = 1e-10,
+    rank_tolerance: float | None = None,
+) -> RefinementResult:
+    """Validated public wrapper for greedy fixed-candidate refinement."""
+    _validate_candidate_full_rank(X, candidate_adjacency, rank_tolerance)
+    return _greedy_refine_dag_engine(
+        X,
+        candidate_adjacency,
+        score_tolerance=score_tolerance,
+        rank_tolerance=rank_tolerance,
+    )
 
 
 def refine_dag(
@@ -190,7 +226,6 @@ def refine_dag(
         Selected adjacency, score, runtime, search diagnostics, and exact-search
         status where applicable.
     """
-    _validate_candidate_full_rank(X, candidate_adjacency, rank_tolerance)
     method = str(method).lower()
     if method == "exact":
         return exact_refine_dag(
@@ -221,9 +256,9 @@ def pruning_pressure(X, candidate_adjacency, *, rank_tolerance: float | None = N
 
 def dagguard_exact(X, candidate_adjacency, **kwargs) -> RefinementResult:
     """Convenience wrapper for exact DAGGuard refinement."""
-    return refine_dag(X, candidate_adjacency, method="exact", **kwargs)
+    return exact_refine_dag(X, candidate_adjacency, **kwargs)
 
 
 def dagguard_greedy(X, candidate_adjacency, **kwargs) -> RefinementResult:
     """Convenience wrapper for fast DAGGuard-Greedy refinement."""
-    return refine_dag(X, candidate_adjacency, method="greedy", **kwargs)
+    return greedy_refine_dag(X, candidate_adjacency, **kwargs)

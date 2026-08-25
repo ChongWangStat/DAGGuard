@@ -16,8 +16,22 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from candidate_contamination_simulations import SETTINGS, run_one
-from local_bic_refinement import edge_jaccard, gaussian_local_bic, total_gaussian_bic
+from candidate_contamination_simulations import (
+    BASE_SEED,
+    SETTINGS,
+    assign_weights,
+    contaminate_candidate,
+    generate_dag,
+    population_standardize,
+    simulate_sem,
+)
+from local_bic_refinement import (
+    edge_jaccard,
+    exact_refine_dag,
+    gaussian_local_bic,
+    greedy_refine_dag,
+    total_gaussian_bic,
+)
 
 
 EXPECTED = {
@@ -38,7 +52,14 @@ EXPECTED = {
 
 def wang_style_prune(X: np.ndarray, candidate: np.ndarray,
                      score_tolerance: float = 1e-10) -> np.ndarray:
-    """Algorithm-2-style batched backward deletion with Gaussian local BIC."""
+    """Algorithm-2-style batched backward deletion with Gaussian local BIC.
+
+    Wang et al. Algorithm 2 evaluates every current parent relative to the same
+    current-parent score, collects all individually improving deletions in a
+    ``ToRemove`` set, removes that set, and repeats.  This differs from
+    DAGGuard-Greedy, which removes only the single best improving parent per
+    iteration.
+    """
     selected = (np.asarray(candidate) != 0).astype(np.int8).copy()
     for child in range(selected.shape[0]):
         current = [int(p) for p in np.flatnonzero(selected[:, child])]
@@ -63,13 +84,6 @@ def regenerate(replicates: int = 100, d: int = 20, n: int = 500) -> pd.DataFrame
     rows = []
     for setting_index, setting in enumerate(SETTINGS):
         for rep in range(replicates):
-            base = run_one(setting, setting_index, rep, d, n)
-            # run_one is deterministic; rebuild its candidate/data through the archived helper
-            # by importing the simulation primitives only when needed below.
-            from candidate_contamination_simulations import (
-                BASE_SEED, assign_weights, contaminate_candidate, generate_dag,
-                population_standardize, simulate_sem,
-            )
             seed = BASE_SEED + 100_000 * setting_index + rep
             rng = np.random.default_rng(seed)
             truth, _ = generate_dag(d, setting.true_edges, setting.true_max_indegree, rng)
@@ -80,19 +94,23 @@ def regenerate(replicates: int = 100, d: int = 20, n: int = 500) -> pd.DataFrame
                 error_scales = np.ones(d)
             X = simulate_sem(W, n, error_scales, rng)
             candidate, _ = contaminate_candidate(truth, setting, rng)
-            from local_bic_refinement import exact_refine_dag, greedy_refine_dag
+
             exact = exact_refine_dag(X, candidate)
             greedy = greedy_refine_dag(X, candidate)
             wang = wang_style_prune(X, candidate)
             wang_gap = total_gaussian_bic(X, wang) - exact.total_bic
+            greedy_gap = greedy.total_bic - exact.total_bic
+            if wang_gap < -1e-7 or greedy_gap < -1e-7:
+                raise AssertionError("A comparator scored below the exact optimum")
             rows.append({
                 "setting": setting.name,
                 "rep": rep,
+                "seed": seed,
                 "wang_equals_exact": np.array_equal(wang, exact.adjacency),
                 "greedy_equals_exact": np.array_equal(greedy.adjacency, exact.adjacency),
                 "wang_exact_jaccard": edge_jaccard(wang, exact.adjacency),
                 "wang_gap": max(0.0, float(wang_gap)),
-                "greedy_gap": max(0.0, float(greedy.total_bic - exact.total_bic)),
+                "greedy_gap": max(0.0, float(greedy_gap)),
             })
     return pd.DataFrame(rows)
 
@@ -111,9 +129,14 @@ def summarize(raw: pd.DataFrame) -> pd.DataFrame:
 def check_expected(summary: pd.DataFrame) -> None:
     failures = []
     for row in summary.itertuples(index=False):
-        observed = (round(row.wang_exact, 2), round(row.greedy_exact, 2),
-                    round(row.jaccard, 4), round(row.wang_gap, 3),
-                    round(row.wang_max_gap, 3), round(row.greedy_gap, 3))
+        observed = (
+            round(float(row.wang_exact), 2),
+            round(float(row.greedy_exact), 2),
+            round(float(row.jaccard), 4),
+            round(float(row.wang_gap), 3),
+            round(float(row.wang_max_gap), 3),
+            round(float(row.greedy_gap), 3),
+        )
         if observed != EXPECTED[row.setting]:
             failures.append((row.setting, observed, EXPECTED[row.setting]))
     if failures:

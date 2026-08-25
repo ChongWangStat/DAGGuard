@@ -103,6 +103,54 @@ class DagGuardApiTests(unittest.TestCase):
             [(r["parent"], r["child"], r["below_cutoff"]) for r in changed_rows],
         )
 
+    def test_saturated_candidate_is_rejected(self):
+        rng = np.random.default_rng(31)
+        n = 5
+        parents = rng.normal(size=(n, n - 1))
+        y = rng.normal(size=n)
+        X = np.column_stack([parents, y])
+        child = n - 1
+        candidate = np.zeros((n, n), dtype=int)
+        candidate[: n - 1, child] = 1
+        with self.assertRaisesRegex(ValueError, "saturated"):
+            refine_dag(X, candidate, method="exact")
+
+    def test_constant_response_is_rejected(self):
+        rng = np.random.default_rng(37)
+        x0 = rng.normal(size=100)
+        y = np.ones(100)
+        X = np.column_stack([x0, y])
+        candidate = np.zeros((2, 2), dtype=int)
+        candidate[0, 1] = 1
+        with self.assertRaisesRegex(ValueError, "constant after centering"):
+            refine_dag(X, candidate, method="exact")
+
+    def test_exact_fit_is_rejected(self):
+        rng = np.random.default_rng(41)
+        n = 120
+        x0 = rng.normal(size=n)
+        x1 = rng.normal(size=n)
+        y = 2.0 * x0 - 0.5 * x1
+        X = np.column_stack([x0, x1, y])
+        candidate = np.zeros((3, 3), dtype=int)
+        candidate[0, 2] = 1
+        candidate[1, 2] = 1
+        with self.assertRaisesRegex(ValueError, "residual variance is numerically zero"):
+            refine_dag(X, candidate, method="exact")
+
+    def test_near_zero_full_model_rss_is_rejected(self):
+        rng = np.random.default_rng(43)
+        n = 150
+        x0 = rng.normal(size=n)
+        x1 = rng.normal(size=n)
+        y = 1.5 * x0 - 0.3 * x1 + 1e-9 * rng.normal(size=n)
+        X = np.column_stack([x0, x1, y])
+        candidate = np.zeros((3, 3), dtype=int)
+        candidate[0, 2] = 1
+        candidate[1, 2] = 1
+        with self.assertRaisesRegex(ValueError, "residual variance is numerically zero"):
+            refine_dag(X, candidate, method="exact")
+
     @staticmethod
     def _scale_test_problem():
         rng = np.random.default_rng(29)

@@ -34,20 +34,8 @@ from local_bic_refinement import (
 )
 
 
-EXPECTED = {
-    "clean_sparse": (1.00, 1.00, 1.0000, 0.000, 0.000, 0.000),
-    "combined_contamination": (0.68, 0.96, 0.9890, 2.956, 65.598, 0.145),
-    "dense_high_indegree": (0.87, 0.97, 0.9959, 0.316, 8.380, 0.065),
-    "dense_moderate": (0.96, 1.00, 0.9988, 0.037, 2.023, 0.000),
-    "fp_025": (1.00, 1.00, 1.0000, 0.000, 0.000, 0.000),
-    "fp_050": (0.99, 1.00, 0.9995, 0.000, 0.009, 0.000),
-    "fp_100": (0.98, 1.00, 0.9991, 0.010, 0.626, 0.000),
-    "lowvar_heterogeneous": (1.00, 1.00, 1.0000, 0.000, 0.000, 0.000),
-    "lowvar_weak_fp": (0.93, 0.99, 0.9960, 0.296, 10.227, 0.022),
-    "missing_010": (1.00, 1.00, 1.0000, 0.000, 0.000, 0.000),
-    "reversal_010": (1.00, 1.00, 1.0000, 0.000, 0.000, 0.000),
-    "weak_fp": (0.96, 1.00, 0.9980, 0.406, 30.943, 0.000),
-}
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ARCHIVED_SUMMARY = REPO_ROOT / "results" / "seven_method_benchmark" / "wang_fixed_candidate_summary.csv"
 
 
 def wang_style_prune(X: np.ndarray, candidate: np.ndarray,
@@ -56,7 +44,7 @@ def wang_style_prune(X: np.ndarray, candidate: np.ndarray,
 
     Wang et al. Algorithm 2 evaluates every current parent relative to the same
     current-parent score, collects all individually improving deletions in a
-    ``ToRemove`` set, removes that set, and repeats.  This differs from
+    ``ToRemove`` set, removes that set, and repeats. This differs from
     DAGGuard-Greedy, which removes only the single best improving parent per
     iteration.
     """
@@ -126,19 +114,25 @@ def summarize(raw: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def check_expected(summary: pd.DataFrame) -> None:
+def check_archived_summary(summary: pd.DataFrame) -> None:
+    expected = pd.read_csv(ARCHIVED_SUMMARY).sort_values("setting").reset_index(drop=True)
+    observed = summary.sort_values("setting").reset_index(drop=True)
+    if list(observed["setting"]) != list(expected["setting"]):
+        raise AssertionError("Archived Wang fixed-candidate setting names do not match")
+    digits = {
+        "wang_exact": 2,
+        "greedy_exact": 2,
+        "jaccard": 4,
+        "wang_gap": 3,
+        "wang_max_gap": 3,
+        "greedy_gap": 3,
+    }
     failures = []
-    for row in summary.itertuples(index=False):
-        observed = (
-            round(float(row.wang_exact), 2),
-            round(float(row.greedy_exact), 2),
-            round(float(row.jaccard), 4),
-            round(float(row.wang_gap), 3),
-            round(float(row.wang_max_gap), 3),
-            round(float(row.greedy_gap), 3),
-        )
-        if observed != EXPECTED[row.setting]:
-            failures.append((row.setting, observed, EXPECTED[row.setting]))
+    for column, ndigits in digits.items():
+        got = observed[column].round(ndigits).to_numpy()
+        want = expected[column].round(ndigits).to_numpy()
+        if not np.array_equal(got, want):
+            failures.append((column, got.tolist(), want.tolist()))
     if failures:
         raise AssertionError("Supplement S7 mismatch: " + repr(failures))
 
@@ -159,7 +153,7 @@ def main() -> None:
     if args.check_manuscript:
         if args.replicates != 100:
             raise ValueError("Manuscript check requires 100 replicates per setting")
-        check_expected(summary)
+        check_archived_summary(summary)
 
 
 if __name__ == "__main__":

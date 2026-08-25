@@ -2,7 +2,7 @@
 
 The commercial swine-production observations are proprietary and are not included in this repository. This file documents the 37 variables used after preprocessing so that the public analysis workflow can be inspected without exposing row-level records.
 
-The source file contains 2,592 rows; the complete-case analysis contains 2,556. The six indicator variables are constructed by the authorized-data workflow; all remaining variables are numeric production measures retained from the source file.
+The source file contains 2,592 rows and 43 fields; the complete-case analysis contains 2,556 rows. Thirty-one source fields enter the analysis matrix directly. Four source fields (`PRRSatPlacement`, `Mycoplasma_Status`, `LateralPRRS`, and `Year_Quarter`) are recoded into six indicators (`PRRS_binary`, `MYCO_binary`, `LateralPRRS_binary`, and Q2-Q4). Eight source fields do not enter the 37-variable matrix; their source-file characteristics and dispositions are documented below.
 
 | Variable | Analysis type | Description / construction |
 |---|---|---|
@@ -43,6 +43,21 @@ The source file contains 2,592 rows; the complete-case analysis contains 2,556. 
 | `Farrowing__rate` | continuous | farrowing rate |
 | `HeadIn` | continuous | pigs placed into the nursery |
 | `mortality_60days` | continuous | nursery mortality during the first 60 days post-placement |
+
+## Source-field disposition outside the 37-variable matrix
+
+The following eight authorized source fields do not enter the analysis matrix. These entries record observable source-file characteristics to make preprocessing auditable; they are not a post hoc variable-selection analysis.
+
+| Source field | Analysis disposition | Observed source-file characteristic |
+|---|---|---|
+| `farrow_sows` | Not included in the 37-variable matrix | Complete numeric field (651 distinct observed values) |
+| `PRRSVACCINE` | Not included in the 37-variable matrix | Complete categorical field with three observed levels |
+| `WeanPigShot` | Not included in the 37-variable matrix | Categorical field with five observed nonmissing levels; 447/2,592 (17.2%) values missing |
+| `SowFarmMed` | Not included in the 37-variable matrix | Categorical field with three observed nonmissing levels; 1,517/2,592 (58.5%) values missing |
+| `LateralCoronavirus` | Not included in the 37-variable matrix | Complete categorical field with three observed levels |
+| `LateralEnteric` | Not included in the 37-variable matrix | Complete categorical field with four observed levels |
+| `OtherHealthIssue` | Not included in the 37-variable matrix | Complete categorical field with two observed levels |
+| `PRRS_mshmp3` | Not included separately | Complete two-level field; its epidemic indicator matches `PRRS_binary` for all 2,592 rows |
 
 ## Grouping and time-field audit
 

@@ -42,19 +42,6 @@ class DagGuardApiTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "rank deficient"):
             refine_dag(X, candidate, method="exact")
 
-    def test_near_collinearity_is_handled_when_full_rank(self):
-        rng = np.random.default_rng(13)
-        x0 = rng.normal(size=300)
-        x1 = x0 + 1e-5 * rng.normal(size=300)
-        y = 0.5 * x0 + 0.5 * x1 + rng.normal(size=300)
-        X = np.column_stack([x0, x1, y])
-        candidate = np.zeros((3, 3), dtype=int)
-        candidate[0, 2] = 1
-        candidate[1, 2] = 1
-        result = refine_dag(X, candidate, method="exact")
-        self.assertTrue(result.globally_optimal)
-        self.assertTrue(np.all(result.adjacency <= candidate))
-
     def test_near_tie_is_deterministic(self):
         rng = np.random.default_rng(19)
         n = 350

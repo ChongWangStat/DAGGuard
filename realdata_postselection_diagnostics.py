@@ -110,58 +110,6 @@ def audit_grouping_fields(raw: pd.DataFrame, out: Path) -> None:
     ]).to_csv(out / "available_grouping_field_audit.csv", index=False)
 
 
-def collinearity_audit(df: pd.DataFrame, out: Path) -> None:
-    cont = [v for v in REAL_VARS if v not in BINARY_VARS]
-    corr = df[cont].corr()
-    pairs = []
-    for i in range(len(cont)):
-        for j in range(i + 1, len(cont)):
-            pairs.append((abs(corr.iloc[i, j]), corr.iloc[i, j], cont[i], cont[j]))
-    pairs.sort(reverse=True)
-    pd.DataFrame(pairs, columns=["abs_r", "r", "var1", "var2"]).to_csv(
-        out / "top_correlations.csv", index=False)
-
-    Xs = StandardScaler().fit_transform(df[cont].to_numpy(float))
-    singular = np.linalg.svd(Xs, compute_uv=False)
-    condition = float(singular[0] / singular[-1])
-    vifs = []
-    for j, name in enumerate(cont):
-        y = Xs[:, j]
-        Z = np.delete(Xs, j, axis=1)
-        beta = np.linalg.lstsq(Z, y, rcond=None)[0]
-        resid = y - Z @ beta
-        r2 = 1 - float(resid @ resid) / float(y @ y)
-        vifs.append((name, r2, 1 / (1 - r2) if r2 < 1 else np.inf))
-    vdf = pd.DataFrame(vifs, columns=["variable", "R2_from_other_continuous", "VIF"])
-    vdf.sort_values("VIF", ascending=False).to_csv(out / "vif_continuous.csv", index=False)
-
-    def projection_r2(yname, xnames):
-        y = df[yname].to_numpy(float)
-        Z = np.column_stack([np.ones(len(df)), df[xnames].to_numpy(float)])
-        beta = np.linalg.lstsq(Z, y, rcond=None)[0]
-        resid = y - Z @ beta
-        return 1 - float(resid @ resid) / float(((y - y.mean()) ** 2).sum())
-
-    checks = [
-        dict(diagnostic="max_abs_pairwise_correlation", value=pairs[0][0],
-             detail=f"{pairs[0][2]} vs {pairs[0][3]}; signed r={pairs[0][1]:.6f}"),
-        dict(diagnostic="standardized_continuous_condition_number", value=condition,
-             detail="continuous-variable design matrix"),
-        dict(diagnostic="max_VIF", value=float(vdf.VIF.max()),
-             detail=str(vdf.sort_values("VIF", ascending=False).iloc[0].variable)),
-        dict(diagnostic="parity_variable_correlation",
-             value=float(df["Avg_parity_farrow"].corr(df["avg_parity_at_farrow"])),
-             detail="Avg_parity_farrow vs avg_parity_at_farrow"),
-        dict(diagnostic="R2_total_born_from_components",
-             value=projection_r2("Total_born_avg", ["Born_alive_avg", "Stillborn_avg", "Mummies_avg"]),
-             detail="Born_alive_avg + Stillborn_avg + Mummies_avg"),
-        dict(diagnostic="R2_prenatal_losses_from_components",
-             value=projection_r2("prenatal_losses_avg", ["Stillborn_avg", "Mummies_avg"]),
-             detail="Stillborn_avg + Mummies_avg"),
-    ]
-    pd.DataFrame(checks).to_csv(out / "realdata_collinearity_audit.csv", index=False)
-
-
 def write_indegree_distribution(A0: np.ndarray, labels: list[str], out: Path) -> dict:
     summary = candidate_indegree_summary(A0)
     indegrees = summary["indegrees"]
@@ -352,7 +300,6 @@ def main():
     numeric.isna().sum().sort_values(ascending=False).to_csv(
         args.out / "missingness_by_variable.csv", header=["missing_n"])
     audit_grouping_fields(raw, args.out)
-    collinearity_audit(df, args.out)
 
     X = df[REAL_VARS].to_numpy(float)
     labels = list(REAL_VARS)
@@ -472,25 +419,6 @@ def main():
             "mortality_in": int(A[:, m].sum()), "mortality_out": int(A[m, :].sum()),
         })
     pd.DataFrame(ebic_rows).to_csv(args.out / "ebic_greedy_sensitivity.csv", index=False)
-
-    remove = ["Avg_parity_farrow", "productive_days_rate", "Total_born_avg", "prenatal_losses_avg"]
-    keep = [v for v in labels if v not in remove]
-    ix = [labels.index(v) for v in keep]
-    Xr = X[:, ix]
-    A0r = A0[np.ix_(ix, ix)]
-    exact_r = exact_refine_dag(Xr, A0r)
-    exact_restricted = exact.adjacency[np.ix_(ix, ix)]
-    mr = keep.index("mortality_60days")
-    pd.DataFrame([{
-        "analysis": "fixed-candidate redundancy-reduced exact refinement",
-        "n": Xr.shape[0], "d": Xr.shape[1], "removed_variables": "; ".join(remove),
-        "restricted_candidate_edges": int(A0r.sum()),
-        "exact_edges": int(exact_r.adjacency.sum()),
-        "original_exact_edges_on_retained_variables": int(exact_restricted.sum()),
-        "jaccard_vs_original_restricted": edge_jaccard(exact_r.adjacency, exact_restricted),
-        "mortality_in": int(exact_r.adjacency[:, mr].sum()),
-        "mortality_out": int(exact_r.adjacency[mr, :].sum()),
-    }]).to_csv(args.out / "redundancy_exact_refinement_sensitivity.csv", index=False)
 
     Xscaled = X.copy()
     for variable in ["HeadIn", "final_inventory"]:

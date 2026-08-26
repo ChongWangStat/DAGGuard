@@ -85,7 +85,7 @@ A 3-by-3 grid varied the NOTEARS L1 penalty and post-estimation threshold. Acros
 
 The authorized analysis uses 2,556 complete lots and 37 variables. The pinned NOTEARS candidate has 185 edges; DAGGuard-Exact retains 87 and DAGGuard-Greedy 89. PRRS is adjacent to 60-day nursery mortality in all seven benchmark methods, while MYCO and third-quarter placement are supported by six. Four outgoing NOTEARS mortality relationships are removed by both DAGGuard variants and are absent from all four comparator graphs.
 
-The proprietary row-level data are not distributed. The real-data workflow records a SHA256 hash and exports only non-row-level summaries. Because several production variables are extremely collinear, the application emphasizes recurring relations and variable groups rather than interpreting every individual selected parent as a uniquely identified mechanism. The audit is in `results/swine_application/realdata_collinearity_audit.csv`.
+The proprietary row-level data are not distributed. The real-data workflow records a SHA256 hash and exports only non-row-level summaries.
 
 ## Repository map
 
@@ -141,7 +141,7 @@ python -m examples.dagguard_quickstart
 python synthetic_application_twin.py --out results/synthetic_application_twin
 ```
 
-The public API tests cover scale invariance for exact refinement, greedy refinement, and pruning pressure; duplicate columns; near-collinearity; near ties; saturated local models; constant responses; and exact or numerically near-exact fits. Additional regression tests check the Gaussian Fisher-z formula, PC-FDR step-up rule, PC-p BY estimator, and the discrete-BIC parameter count used in the Wang adaptation.
+The public API tests cover scale invariance for exact refinement, greedy refinement, and pruning pressure; duplicate columns; near ties; saturated local models; constant responses; and exact or numerically near-exact fits. Additional regression tests check the Gaussian Fisher-z formula, PC-FDR step-up rule, PC-p BY estimator, and the discrete-BIC parameter count used in the Wang adaptation.
 
 ## Data availability
 
